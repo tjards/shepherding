@@ -54,9 +54,38 @@ def build_index(nShepherds, nHerd):
     np.random.shuffle(index)
     return index
 
+# separate the shepherds from the herd
+# -----------------------------------
+def distinguish(state, nShepherds, index):
+    
+    # initiate
+    # --------
+    shepherds = np.zeros((state.shape[0],nShepherds))
+    i_s = 0
+    herd = np.zeros((state.shape[0],state.shape[1]-nShepherds))
+    i_h = 0
+    
+    # fill
+    # ----
+    for i in range(0,state.shape[1]):
+        
+        # shepherd
+        if index[i] == 1:
+            shepherds[:,i_s] = state[:,i]
+            i_s += 1
+        # herd
+        else:
+            herd[:,i_h] = state[:,i]
+            i_h += 1    
+    
+    return shepherds, herd
+
     
 #%% run
 # ----
-result = build_index(nShepherds, state.shape[1]-nShepherds)
-print(result)  
-    
+index = build_index(nShepherds, state.shape[1]-nShepherds)
+print(index)  
+
+shepherds, herd = distinguish(state, nShepherds, index)
+print(shepherds)
+print(herd)    
