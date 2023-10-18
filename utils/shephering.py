@@ -14,6 +14,7 @@ Created on Tue Oct 17 20:00:12 2023
 #%% import stuff
 # ------------
 import numpy as np
+from scipy.spatial.distance import cdist
 
 # need to break into two parts
 # 1. heard
@@ -46,12 +47,17 @@ targets = np.array([[ 0.,  0.,  0.,  0.,  0.],
 # --------------------------------------------------------------
 def build_index(nShepherds, nHerd):
     
+    # check to ensure herd is big enough
+    # ---------------------------------
     if nShepherds > (state.shape[1]-1):
         raise ValueError("there needs to be at least one member in the herd ")
-    # Create an array with m 1's and (n-m) 0's
+    
+    # random, for now (later, based on conditions)
+    # ---------------
     index = np.concatenate((np.ones(nShepherds, dtype=int), np.zeros(nHerd, dtype=int)))
-    # Shuffle the array to distribute 1's and 0's randomly
+    # Shuffle to distribute 1's and 0's randomly
     np.random.shuffle(index)
+    
     return index
 
 # separate the shepherds from the herd
@@ -65,11 +71,11 @@ def distinguish(state, nShepherds, index):
     herd = np.zeros((state.shape[0],state.shape[1]-nShepherds))
     i_h = 0
     
-    # fill
-    # ----
+    # distinguish between shepherds and herd
+    # -------------------------------------
     for i in range(0,state.shape[1]):
         
-        # shepherd
+        # shepherds
         if index[i] == 1:
             shepherds[:,i_s] = state[:,i]
             i_s += 1
@@ -79,6 +85,18 @@ def distinguish(state, nShepherds, index):
             i_h += 1    
     
     return shepherds, herd
+
+
+#%% separation 
+def compute_seps(state):
+    seps_all = np.zeros((state.shape[1],state.shape[1]))
+    i = 0
+    while (i<state.shape[1]):
+        seps_all[i:state.shape[1],i]=cdist(state[0:3,i].reshape(1,3), state[0:3,i:state.shape[1]].transpose())
+        i+=1
+    return seps_all
+
+seps_all = compute_seps(state)
 
     
 #%% run
