@@ -5,6 +5,9 @@ Created on Tue Oct 17 20:00:12 2023
 
 @author: tjards
 
+Refs:
+    https://royalsocietypublishing.org/doi/10.1098/rsos.230015
+
 
 """
 
@@ -22,8 +25,16 @@ from scipy.spatial.distance import cdist
 
 #%% hyperparameters
 # -----------------
-nShepherds = 1      # number of shepherds (default = 1, just herding = 0)
+nShepherds = 1  # number of shepherds (default = 1, just herding = 0)
+r_R = 10         # repulsion radius
+r_O = 20         # orientation radius
+r_A = 40         # alignment radius (a_R < a_O < a_A)
+r_I = 35       # agent interaction radius (nominally, slighly < a_A)
 
+a_R = 1         # gain,repulsion 
+a_O = 1         # gain orientation 
+a_A = 1         # gain, alignment  
+a_I = 1       # gain, agent interaction 
 
 #%% dev
 # -----
@@ -87,7 +98,8 @@ def distinguish(state, nShepherds, index):
     return shepherds, herd
 
 
-#%% separation 
+#%% define separation
+# ------------------ 
 def compute_seps(state):
     seps_all = np.zeros((state.shape[1],state.shape[1]))
     i = 0
@@ -96,14 +108,59 @@ def compute_seps(state):
         i+=1
     return seps_all
 
-seps_all = compute_seps(state)
+
+#%% define motion vector
+# ----------------------
+# input the herd
+def motion_intraherd(state):
+    
+    seps_all = compute_seps(state)
+    motion_vector = np.zeros((3,state.shape[1]))
+    
+    # search through each agent
+    for i in range(0,state.shape[1]):
+        # and others
+        j = i
+        while (j < state.shape[1]):
+            # but not itself
+            if i != j:
+                
+                # pull distance
+                dist = seps_all[j,i]
+                print(dist)
+                
+                # I could nest these, given certain radial constraints
+                # ... but I won't, deliberately, for now (enforce above, then come back later)
+                print(i)
+                # repulsion
+                if dist < r_R:
+                    motion_vector[:,i] -= a_R * np.divide(state[0:3,j]-state[0:3,i],dist)
+                       
+                # orientation
+                if dist < r_O:
+                    motion_vector[:,i] += a_O * np.divide(state[3:6,j]-state[3:6,i],np.linalg.norm(state[3:6,j]-state[3:6,i]))
+                
+                # alignment
+                if dist < r_A:
+                    motion_vector[:,i] += a_A * np.divide(state[0:3,j]-state[0:3,i],dist)
+
+            j+=1
+    
+    return motion_vector 
+                
+        
 
     
 #%% run
 # ----
 index = build_index(nShepherds, state.shape[1]-nShepherds)
-print(index)  
-
+# print(index)  
 shepherds, herd = distinguish(state, nShepherds, index)
-print(shepherds)
-print(herd)    
+# print(shepherds)
+# print(herd) 
+# seps_all = compute_seps(state)   
+# print(seps_all)
+print(motion_intraherd(herd))
+
+
+
