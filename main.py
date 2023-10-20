@@ -50,21 +50,22 @@ from utils import pinning_tools, lemni_tools, starling_tools, swarm_metrics, too
 # ------------------
 np.random.seed(2)
 Ti      =   0       # initial time
-Tf      =   15     # final time (later, add a condition to break out when desirable conditions are met)
+Tf      =   30     # final time (later, add a condition to break out when desirable conditions are met)
 Ts      =   0.02    # sample time
-nVeh    =   5      # number of vehicles
-iSpread =   15      # initial spread of vehicles
+nVeh    =   12      # number of vehicles
+iSpread =   20      # initial spread of vehicles
 tSpeed  =   0       # speed of target
 rVeh    =   0.5     # physical radius of vehicle 
 exclusion = []      # initialization of what agents to exclude, default empty
 
-tactic_type = 'pinning'     
-                # reynolds = Reynolds flocking + Olfati-Saber obstacle
-                # saber = Olfati-Saber flocking
-                # starling = swar like starlings 
-                # circle = encirclement
-                # lemni = dynamic lemniscates and other closed curves
-                # pinning = pinning control
+tactic_type = 'shep'     
+                # reynolds  = Reynolds flocking + Olfati-Saber obstacle
+                # saber     = Olfati-Saber flocking
+                # starling  = swarm like starlings 
+                # circle    = encirclement
+                # lemni     = dynamic lemniscates and other closed curves
+                # pinning   = pinning control
+                # shep      = shepherding
 
 # if using reynolds, need make target an obstacle 
 if tactic_type == 'reynolds':
@@ -335,7 +336,7 @@ while round(t,3) < Tf:
     lemni_all_ = np.delete(lemni_all, [exclusion], axis = 1)
         
     #if flocking
-    if tactic_type == 'reynolds' or tactic_type == 'saber' or tactic_type == 'starling' or tactic_type == 'pinning':
+    if tactic_type == 'reynolds' or tactic_type == 'saber' or tactic_type == 'starling' or tactic_type == 'pinning' or tactic_type == 'shep':
         trajectory = targets 
     
     # if encircling

@@ -26,32 +26,32 @@ from scipy.spatial.distance import cdist
 #%% hyperparameters
 # -----------------
 nShepherds = 1  # number of shepherds (default = 1, just herding = 0)
-r_R = 10         # repulsion radius
-r_O = 20         # orientation radius
-r_A = 40         # alignment radius (a_R < a_O < a_A)
-r_I = 35       # agent interaction radius (nominally, slighly < a_A)
+r_R = 2         # repulsion radius
+r_O = 4         # orientation radius
+r_A = 10         # attraction radius (a_R < a_O < a_A)
+r_I = 5.5       # agent interaction radius (nominally, slighly < a_A)
 
-a_R = 1         # gain,repulsion 
-a_O = 1         # gain orientation 
-a_A = 1         # gain, alignment  
-a_I = 1       # gain, agent interaction 
+a_R = 0.5         # gain,repulsion 
+a_O = 10         # gain orientation 
+a_A = 2         # gain, attraction 
+a_I = 0       # gain, agent interaction 
 
 #%% dev
 # -----
 
 state = np.array([[-0.09531187, -3.62677053, -0.19474599,  0.60565189, -0.49085531],
-       [ 0.7286528 ,  0.29258714,  1.55372048, -2.22041092, -3.20395583],
-       [19.55264931, 15.97155896, 12.54037952, 15.66294835, 10.96263862],
-       [-0.04973982, -0.17979188, -0.04870185,  0.02474909, -0.05649268],
-       [ 0.11554307,  0.35100273,  0.12836373,  0.27391689,  0.22342425],
-       [-0.22158579, -0.26174345, -0.04171904, -0.20590812, -0.46992463]])
+        [ 0.7286528 ,  0.29258714,  1.55372048, -2.22041092, -3.20395583],
+        [19.55264931, 15.97155896, 12.54037952, 15.66294835, 10.96263862],
+        [-0.04973982, -0.17979188, -0.04870185,  0.02474909, -0.05649268],
+        [ 0.11554307,  0.35100273,  0.12836373,  0.27391689,  0.22342425],
+        [-0.22158579, -0.26174345, -0.04171904, -0.20590812, -0.46992463]])
 
 targets = np.array([[ 0.,  0.,  0.,  0.,  0.],
-       [ 0.,  0.,  0.,  0.,  0.],
-       [15., 15., 15., 15., 15.],
-       [ 0.,  0.,  0.,  0.,  0.],
-       [ 0.,  0.,  0.,  0.,  0.],
-       [ 0.,  0.,  0.,  0.,  0.]])
+        [ 0.,  0.,  0.,  0.,  0.],
+        [15., 15., 15., 15., 15.],
+        [ 0.,  0.,  0.,  0.,  0.],
+        [ 0.,  0.,  0.,  0.,  0.],
+        [ 0.,  0.,  0.,  0.,  0.]])
 
 
 # build an index distinguishing shepards from herd (1 = s, 0 = h)
@@ -109,9 +109,8 @@ def compute_seps(state):
     return seps_all
 
 
-#%% define motion vector
+#%% define motion vector (for dev)
 # ----------------------
-# input the herd
 def motion_intraherd(state):
     
     seps_all = compute_seps(state)
@@ -148,19 +147,55 @@ def motion_intraherd(state):
     
     return motion_vector 
                 
-        
+# fcompute command (for prod)
+# ----------------------------
+def compute_cmd(states_q, states_p, i):
+    
+    seps_all = compute_seps(states_q)
+    motion_vector = np.zeros((3,states_q.shape[1]))
+    
+    # search through each agent
+    #for i in range(0,state.shape[1]):
+    # and others
+    j = i
+    while (j < states_q.shape[1]):
+        # but not itself
+        if i != j:
+            
+            # pull distance
+            dist = seps_all[j,i]
+            #print(dist)
+            
+            # I could nest these, given certain radial constraints
+            # ... but I won't, deliberately, for now (enforce above, then come back later)
+            #print(i)
+            # repulsion
+            if dist < r_R:
+                motion_vector[:,i] -= a_R * np.divide(states_q[:,j]-states_q[:,i],dist)
+                   
+            # orientation
+            if dist < r_O:
+                motion_vector[:,i] += a_O * np.divide(states_p[:,j]-states_p[:,i],np.linalg.norm(states_p[:,j]-states_p[:,i]))
+            
+            # alignment
+            if dist < r_A:
+                motion_vector[:,i] += a_A * np.divide(states_q[:,j]-states_q[:,i],dist)
+
+        j+=1
+    
+    return motion_vector[:,i]*0.02 #note, this is Ts, because output of above is velo, model is double integrator
 
     
 #%% run
 # ----
-index = build_index(nShepherds, state.shape[1]-nShepherds)
+#index = build_index(nShepherds, state.shape[1]-nShepherds)
 # print(index)  
-shepherds, herd = distinguish(state, nShepherds, index)
+#shepherds, herd = distinguish(state, nShepherds, index)
 # print(shepherds)
 # print(herd) 
 # seps_all = compute_seps(state)   
 # print(seps_all)
-print(motion_intraherd(herd))
+#print(motion_intraherd(herd))
 
 
 

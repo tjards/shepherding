@@ -22,6 +22,7 @@ import numpy as np
 
 from utils import pinning_tools, reynolds_tools, saber_tools, lemni_tools, starling_tools  
 from utils import encirclement_tools as encircle_tools
+from utils import shepherding as shep
 
 
 #%% Tactic Command Equations 
@@ -115,7 +116,13 @@ def commands(states_q, states_p, obstacles, walls, targets, targets_v, targets_e
             
             cmd_i[:,k_node] = pinning_tools.compute_cmd(centroid, states_q, states_p, obstacles, walls, targets, targets_v, k_node, pin_matrix)
             
+        # Shepherding
+        # ------------
+        if tactic_type == 'shep':
             
+            cmd_i[:,k_node] = shep.compute_cmd(states_q, states_p, k_node)
+            
+        
             
         # Mixer
         # -----         
@@ -131,6 +138,9 @@ def commands(states_q, states_p, obstacles, walls, targets, targets_v, targets_e
             cmd_i[:,k_node] = cmd_i[:,k_node]
         elif tactic_type == 'pinning':
             cmd_i[:,k_node] = cmd_i[:,k_node]
+        elif tactic_type == 'shep':
+            cmd_i[:,k_node] = cmd_i[:,k_node]
+            
             
         # if using pinning control
         # pin (agent 0) just does the u_nav part
