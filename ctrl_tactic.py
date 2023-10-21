@@ -120,7 +120,9 @@ def commands(states_q, states_p, obstacles, walls, targets, targets_v, targets_e
         # ------------
         if tactic_type == 'shep':
             
-            cmd_i[:,k_node] = shep.compute_cmd(states_q, states_p, k_node)
+            # compute command, pin_matrix records shepherds = 1, herd = 0
+            # ------------------------------------------------
+            cmd_i[:,k_node], pin_matrix[k_node, k_node] = shep.compute_cmd(targets, centroid, states_q, states_p, k_node)
             
         
             
