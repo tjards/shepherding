@@ -11,7 +11,7 @@ Refs:
 
 """
 
-
+# Note: doesn't allow shepards < 2 (because of min/max stuff), fix this later
 
 
 #%% import stuff
@@ -19,46 +19,28 @@ Refs:
 import numpy as np
 from scipy.spatial.distance import cdist
 
-# need to break into two parts
-# 1. heard
-# 2. shepherds
-
 #%% hyperparameters
 # -----------------
-nShepherds = 4  # number of shepherds (default = 1, just herding = 0)
+nShepherds = 10  # number of shepherds (just herding = 0)
+
+# herd
 r_R = 2         # repulsion radius
 r_O = 4         # orientation radius
-r_A = 5         # attraction radius (a_R < a_O < a_A)
-r_I = 4.5       # agent interaction radius (nominally, slighly < a_A)
+r_A = 7         # attraction radius (a_R < a_O < a_A)
+r_I = 6.5       # agent interaction radius (nominally, slighly < a_A)
 
-r_S = r_I - 1           # sheparding radius from herd
-
-a_R = 0.5         # gain,repulsion 
-a_O = 9         # gain orientation 
+a_R = 0.5       # gain,repulsion 
+a_O = 4         # gain orientation 
 a_A = 2         # gain, attraction 
-a_I = 1       # gain, agent interaction 
-a_V = 0.25      # gain, to stop
+a_I = 2         # gain, agent interaction 
+a_V = 0.25      # gain, laziness (desire to stop)
 
-a_N = 10         # gain, shepherds navigation
-a_R_s = 1 # gain, shepards repel eachother
+# shepherds
+r_S = r_I - 1   # desired radius from herd
 
-#%% dev
-# -----
-
-# state = np.array([[-0.09531187, -3.62677053, -0.19474599,  0.60565189, -0.49085531],
-#         [ 0.7286528 ,  0.29258714,  1.55372048, -2.22041092, -3.20395583],
-#         [19.55264931, 15.97155896, 12.54037952, 15.66294835, 10.96263862],
-#         [-0.04973982, -0.17979188, -0.04870185,  0.02474909, -0.05649268],
-#         [ 0.11554307,  0.35100273,  0.12836373,  0.27391689,  0.22342425],
-#         [-0.22158579, -0.26174345, -0.04171904, -0.20590812, -0.46992463]])
-
-# targets = np.array([[ 0.,  0.,  0.,  0.,  0.],
-#         [ 0.,  0.,  0.,  0.,  0.],
-#         [15., 15., 15., 15., 15.],
-#         [ 0.,  0.,  0.,  0.,  0.],
-#         [ 0.,  0.,  0.,  0.,  0.],
-#         [ 0.,  0.,  0.,  0.,  0.]])
-
+a_N = 5        # gain, navigation
+a_R_s = 10       # gain, shepards repel eachother
+a_V_s = np.sqrt(2)*2      # gain, laziness (desire to stop)
 
 # build an index distinguishing shepards from herd (1 = s, 0 = h)
 # --------------------------------------------------------------
@@ -79,7 +61,7 @@ def build_index(nShepherds, state):
     # Shuffle to distribute 1's and 0's randomly
     #np.random.shuffle(index)
     
-    return index
+    return list(index)
 
 # separate the shepherds from the herd
 # -----------------------------------
@@ -107,7 +89,6 @@ def distinguish(state, nShepherds, index):
     
     return shepherds, herd
 
-
 #%% define separation
 # ------------------ 
 def compute_seps(state):
@@ -118,22 +99,19 @@ def compute_seps(state):
         i+=1
     
     seps_all = seps_all + seps_all.transpose()
-    
+        
     return seps_all
-
-                
+               
 # compute command - herd
 # ----------------------------
-def compute_cmd_herd(states_q, states_p, i, distinguish):
+def compute_cmd_herd(states_q, states_p, i, distinguish, seps_all):
     
     # initialize
     # -----------
-    seps_all = compute_seps(states_q)
+    #seps_all = compute_seps(states_q)
     motion_vector = np.zeros((3,states_q.shape[1]))
     
     # search through each agent
-    #for i in range(0,state.shape[1]):
-    # and others
     j = 0
     while (j < states_q.shape[1]):
         
@@ -148,20 +126,19 @@ def compute_cmd_herd(states_q, states_p, i, distinguish):
             # ... but I won't, deliberately, for now (enforce above, then come back later)
             #print(i)
             
-            # to stop
+            # urge to stop moving
             motion_vector[:,i] += a_V * (-states_p[:,i])
-            
-            
+              
             # repulsion
-            if dist < r_R:
+            if dist < r_R and distinguish[j] == 0:
                 motion_vector[:,i] -= a_R * np.divide(states_q[:,j]-states_q[:,i],dist)
                    
             # orientation
-            if dist < r_O:
+            if dist < r_O and distinguish[j] == 0:
                 motion_vector[:,i] += a_O * np.divide(states_p[:,j]-states_p[:,i],np.linalg.norm(states_p[:,j]-states_p[:,i]))
             
             # attraction
-            if dist < r_A:
+            if dist < r_A and distinguish[j] == 0:
                 motion_vector[:,i] += a_A * np.divide(states_q[:,j]-states_q[:,i],dist)
                 
             # shepherd influence
@@ -174,33 +151,63 @@ def compute_cmd_herd(states_q, states_p, i, distinguish):
 
 # compute commands - sheperd
 # -------------------------
-def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish):
+def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps_list):
     
-    # compute the normalized vector between center of herd and target
-    v = np.divide(centroid.transpose()-targets[:,i],np.linalg.norm(centroid.transpose()-targets[:,i])) 
+    # find the indices for the shepherds
+    indices_shep = [k for k, m in enumerate(distinguish) if m == 1]
+    # make them negative
+    for k in indices_shep:
+        seps_list[k] = -seps_list[k]
+    # find the closest shepherd
+    closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
+    # find the closest herd
+    closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
+    
+    # push the center of the herd
+    # ---------------------------
+    # compute the normalized vector between center of herd and target <- this should be closest herd member, not centroid
+    #v = np.divide(centroid.transpose()-targets[:,i],np.linalg.norm(centroid.transpose()-targets[:,i])) 
+    
+    # compute the normalized vector between closest in herd and target 
+    v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
     
     # compute the desired location to shepard
-    q_s = centroid.transpose() + r_S*v  
+    #q_s = centroid.transpose() + r_S*v  
+    q_s = states_q[:,closest_herd] + r_S*v # travis, I think this needs to be +
     
     # navigate to that position
     cmd = a_N * np.divide(q_s-states_q[:,i],np.linalg.norm(q_s-states_q[:,i]))
     
-    # repel from other shepards
-    j = 0
+    # slowdown
+    # --------
+    cmd += a_V_s * (-states_p[:,i])
     
-    # go their agents
-    while (j < states_q.shape[1]):
-        
-        # if its another shepherd
-        if i != j and distinguish[j] == 1:
-            cmd -= a_R_s * np.divide(states_q[:,j]-states_q[:,i],np.linalg.norm(states_q[:,j]-states_q[:,i]))
-            
-        j += 1
+    # repel from closest shepherd
+    # ---------------------------
+    q_h = states_q[:,closest_shepherd]
+    cmd += a_R_s * np.divide(q_h-states_q[:,i],np.linalg.norm(q_h-states_q[:,i]))
+    
+    
+    # # repel from other shepherd (legacy)
+    # # -------------------------
+    # j = 0
+    # # go thru agents
+    # while (j < states_q.shape[1]):
+    #     # if its another shepherd
+    #     if i != j and distinguish[j] == 1:
+    #         # compute a repulsive command (just away)
+    #         cmd -= a_R_s * np.divide(states_q[:,j]-states_q[:,i],np.linalg.norm(states_q[:,j]-states_q[:,i]))
+    #     j += 1
     
     return cmd
     
 
 def compute_cmd(targets, centroid, states_q, states_p, i):
+    
+    
+    # compute distances between all
+    # -----------------------------
+    seps_all = compute_seps(states_q)
     
     # discern shepherds from herd
     # ---------------------------
@@ -212,13 +219,13 @@ def compute_cmd(targets, centroid, states_q, states_p, i):
     
         # do the herd stuff
         # -----------------
-        cmd = compute_cmd_herd(states_q, states_p, i, distinguish)
+        cmd = compute_cmd_herd(states_q, states_p, i, distinguish, seps_all)
     
     else:
         
         # do the shepherd stuff
         # ----------------------
-        cmd =  compute_cmd_shep(targets,centroid, states_q, states_p, i, distinguish)   
+        cmd =  compute_cmd_shep(targets,centroid, states_q, states_p, i, distinguish, list(seps_all[i,:]))   
         
     return cmd*0.02, distinguish[i] #note, this is Ts, because output of above is velo, model is double integrator
     
@@ -277,3 +284,20 @@ def compute_cmd(targets, centroid, states_q, states_p, i):
 #             j+=1
     
 #     return motion_vector 
+
+
+
+# state = np.array([[-0.09531187, -3.62677053, -0.19474599,  0.60565189, -0.49085531],
+#         [ 0.7286528 ,  0.29258714,  1.55372048, -2.22041092, -3.20395583],
+#         [19.55264931, 15.97155896, 12.54037952, 15.66294835, 10.96263862],
+#         [-0.04973982, -0.17979188, -0.04870185,  0.02474909, -0.05649268],
+#         [ 0.11554307,  0.35100273,  0.12836373,  0.27391689,  0.22342425],
+#         [-0.22158579, -0.26174345, -0.04171904, -0.20590812, -0.46992463]])
+
+# targets = np.array([[ 0.,  0.,  0.,  0.,  0.],
+#         [ 0.,  0.,  0.,  0.,  0.],
+#         [15., 15., 15., 15., 15.],
+#         [ 0.,  0.,  0.,  0.,  0.],
+#         [ 0.,  0.,  0.,  0.,  0.],
+#         [ 0.,  0.,  0.,  0.,  0.]])
+
