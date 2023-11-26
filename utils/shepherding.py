@@ -18,29 +18,35 @@ Refs:
 # ------------
 import numpy as np
 from scipy.spatial.distance import cdist
+from utils import quaternions as quat
+
 
 #%% hyperparameters
 # -----------------
-nShepherds = 10  # number of shepherds (just herding = 0)
+nShepherds = 7  # number of shepherds (just herding = 0)
 
-# herd
+# for herding
 r_R = 2         # repulsion radius
 r_O = 4         # orientation radius
 r_A = 7         # attraction radius (a_R < a_O < a_A)
 r_I = 6.5       # agent interaction radius (nominally, slighly < a_A)
 
 a_R = 0.5       # gain,repulsion 
-a_O = 4         # gain orientation 
-a_A = 2         # gain, attraction 
-a_I = 2         # gain, agent interaction 
+a_O = 1         # gain orientation 
+a_A = 0.8       # gain, attraction 
+a_I = 1.2        # gain, agent interaction 
 a_V = 0.25      # gain, laziness (desire to stop)
 
-# shepherds
-r_S = r_I - 1   # desired radius from herd
+# for shepherding
+r_S     = r_I - 1           # desired radius from herd
+a_N     = 10                # gain, navigation
+a_R_s   = 4                 # gain, shepards repel eachother
+a_R_s_v = 2*np.sqrt(a_R_s)
+a_V_s   = np.sqrt(2)*2      # gain, laziness (desire to stop)
 
-a_N = 5        # gain, navigation
-a_R_s = 10       # gain, shepards repel eachother
-a_V_s = np.sqrt(2)*2      # gain, laziness (desire to stop)
+r_Oi    = 5                 # range to view obstacles (here, nearest shepherd)
+r_Od    = 2                 # desired distance from obtacles 
+r_Or    = 0.5               # radius of shepherd (uniform for all agents, for now)
 
 # build an index distinguishing shepards from herd (1 = s, 0 = h)
 # --------------------------------------------------------------
@@ -89,7 +95,7 @@ def distinguish(state, nShepherds, index):
     
     return shepherds, herd
 
-#%% define separation
+# define separation
 # ------------------ 
 def compute_seps(state):
     seps_all = np.zeros((state.shape[1],state.shape[1]))
@@ -101,7 +107,43 @@ def compute_seps(state):
     seps_all = seps_all + seps_all.transpose()
         
     return seps_all
-               
+
+# obstacle avoidance stuff (shepherds)
+# ------------------------------------
+eps = 0.1
+h   = 0.9
+pi  = 3.141592653589793
+
+def sigma_1(z):    
+    sigma_1 = np.divide(z,np.sqrt(1+z**2))    
+    return sigma_1
+
+def rho_h(z):    
+    if 0 <= z < h:
+        rho_h = 1        
+    elif h <= z < 1:
+        rho_h = 0.5*(1+np.cos(pi*np.divide(z-h,1-h)))    
+    else:
+        rho_h = 0  
+    return rho_h
+
+def sigma_norm(z):    
+    norm_sig = (1/eps)*(np.sqrt(1+eps*np.linalg.norm(z)**2)-1)
+    return norm_sig
+
+def phi_b(q_i, q_ik, d_b): 
+    z = sigma_norm(q_ik-q_i)        
+    phi_b = rho_h(z/d_b) * (sigma_1(z-d_b)-1)    
+    return phi_b
+
+def n_ij(q_i, q_j):
+    n_ij = np.divide(q_j-q_i,np.sqrt(1+eps*np.linalg.norm(q_j-q_i)**2))    
+    return n_ij
+
+def b_ik(q_i, q_ik, d_b):        
+    b_ik = rho_h(sigma_norm(q_ik-q_i)/d_b)
+    return b_ik
+
 # compute command - herd
 # ----------------------------
 def compute_cmd_herd(states_q, states_p, i, distinguish, seps_all):
@@ -153,57 +195,57 @@ def compute_cmd_herd(states_q, states_p, i, distinguish, seps_all):
 # -------------------------
 def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps_list):
     
+    # initialize a dict of angles
+    #angles = {}
+    
     # find the indices for the shepherds
     indices_shep = [k for k, m in enumerate(distinguish) if m == 1]
+    
     # make them negative
     for k in indices_shep:
         seps_list[k] = -seps_list[k]
-    # find the closest shepherd
-    closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
+        
+    # deal with the herd
+    # ------------------
+    
     # find the closest herd
     closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
-    
-    # push the center of the herd
-    # ---------------------------
-    # compute the normalized vector between center of herd and target <- this should be closest herd member, not centroid
-    #v = np.divide(centroid.transpose()-targets[:,i],np.linalg.norm(centroid.transpose()-targets[:,i])) 
     
     # compute the normalized vector between closest in herd and target 
     v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
     
     # compute the desired location to shepard
-    #q_s = centroid.transpose() + r_S*v  
-    q_s = states_q[:,closest_herd] + r_S*v # travis, I think this needs to be +
+    q_s = states_q[:,closest_herd] + r_S*v 
     
     # navigate to that position
     cmd = a_N * np.divide(q_s-states_q[:,i],np.linalg.norm(q_s-states_q[:,i]))
     
-    # slowdown
-    # --------
+    # urge to slow down
+    # ----------------
     cmd += a_V_s * (-states_p[:,i])
     
-    # repel from closest shepherd
-    # ---------------------------
-    q_h = states_q[:,closest_shepherd]
-    cmd += a_R_s * np.divide(q_h-states_q[:,i],np.linalg.norm(q_h-states_q[:,i]))
+    # deal with other shepherds
+    # -------------------------
     
+    closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
+    q_cs = states_q[:,closest_shepherd]         # closest shepherd
+    d_cs = np.linalg.norm(q_cs-states_q[:,i])   # distance from that closest shepherd
     
-    # # repel from other shepherd (legacy)
-    # # -------------------------
-    # j = 0
-    # # go thru agents
-    # while (j < states_q.shape[1]):
-    #     # if its another shepherd
-    #     if i != j and distinguish[j] == 1:
-    #         # compute a repulsive command (just away)
-    #         cmd -= a_R_s * np.divide(states_q[:,j]-states_q[:,i],np.linalg.norm(states_q[:,j]-states_q[:,i]))
-    #     j += 1
-    
+    # maintain a desired separation from closest shepard (if within range)
+    if d_cs < r_Oi:
+        
+        bold_a_k = np.array(np.divide(states_q[:,i]-q_cs,d_cs), ndmin = 2)
+        P = np.identity(states_p.shape[0]) - np.multiply(bold_a_k,bold_a_k.transpose())
+        mu = np.divide(r_Or,d_cs) 
+        p_ik = mu*np.dot(P,states_p[:,i]) 
+        q_ik = mu*states_q[:,i]+(1-mu)*q_cs
+        
+        cmd += a_R_s*phi_b(states_q[:,i], q_ik, sigma_norm(r_Od))*n_ij(states_q[:,i], q_ik) + a_R_s_v*b_ik(states_q[:,i], q_ik, sigma_norm(r_Od))*(p_ik - states_p[:,i])
+ 
     return cmd
     
 
 def compute_cmd(targets, centroid, states_q, states_p, i):
-    
     
     # compute distances between all
     # -----------------------------
@@ -229,75 +271,4 @@ def compute_cmd(targets, centroid, states_q, states_p, i):
         
     return cmd*0.02, distinguish[i] #note, this is Ts, because output of above is velo, model is double integrator
     
-
-
-#%% DEV
-    
-# run
-# ----
-#index = build_index(nShepherds, state.shape[1]-nShepherds)
-# print(index)  
-#shepherds, herd = distinguish(state, nShepherds, index)
-# print(shepherds)
-# print(herd) 
-# seps_all = compute_seps(state)   
-# print(seps_all)
-#print(motion_intraherd(herd))
-
-
-
-
-# define motion vector 
-# ----------------------
-# def motion_intraherd(state):
-    
-#     seps_all = compute_seps(state)
-#     motion_vector = np.zeros((3,state.shape[1]))
-    
-#     # search through each agent
-#     for i in range(0,state.shape[1]):
-#         # and others
-#         j = i
-#         while (j < state.shape[1]):
-#             # but not itself
-#             if i != j:
-                
-#                 # pull distance
-#                 dist = seps_all[j,i]
-#                 print(dist)
-                
-#                 # I could nest these, given certain radial constraints
-#                 # ... but I won't, deliberately, for now (enforce above, then come back later)
-#                 print(i)
-#                 # repulsion
-#                 if dist < r_R:
-#                     motion_vector[:,i] -= a_R * np.divide(state[0:3,j]-state[0:3,i],dist)
-                       
-#                 # orientation
-#                 if dist < r_O:
-#                     motion_vector[:,i] += a_O * np.divide(state[3:6,j]-state[3:6,i],np.linalg.norm(state[3:6,j]-state[3:6,i]))
-                
-#                 # alignment
-#                 if dist < r_A:
-#                     motion_vector[:,i] += a_A * np.divide(state[0:3,j]-state[0:3,i],dist)
-
-#             j+=1
-    
-#     return motion_vector 
-
-
-
-# state = np.array([[-0.09531187, -3.62677053, -0.19474599,  0.60565189, -0.49085531],
-#         [ 0.7286528 ,  0.29258714,  1.55372048, -2.22041092, -3.20395583],
-#         [19.55264931, 15.97155896, 12.54037952, 15.66294835, 10.96263862],
-#         [-0.04973982, -0.17979188, -0.04870185,  0.02474909, -0.05649268],
-#         [ 0.11554307,  0.35100273,  0.12836373,  0.27391689,  0.22342425],
-#         [-0.22158579, -0.26174345, -0.04171904, -0.20590812, -0.46992463]])
-
-# targets = np.array([[ 0.,  0.,  0.,  0.,  0.],
-#         [ 0.,  0.,  0.,  0.,  0.],
-#         [15., 15., 15., 15., 15.],
-#         [ 0.,  0.,  0.,  0.,  0.],
-#         [ 0.,  0.,  0.,  0.,  0.],
-#         [ 0.,  0.,  0.,  0.,  0.]])
 

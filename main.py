@@ -50,10 +50,10 @@ from utils import pinning_tools, lemni_tools, starling_tools, swarm_metrics, too
 # ------------------
 np.random.seed(2)
 Ti      =   0       # initial time
-Tf      =   300     # final time (later, add a condition to break out when desirable conditions are met)
+Tf      =   120     # final time (later, add a condition to break out when desirable conditions are met)
 Ts      =   0.02    # sample time
-nVeh    =   25      # number of vehicles
-iSpread =   30      # initial spread of vehicles
+nVeh    =   30      # number of vehicles
+iSpread =   20      # initial spread of vehicles
 tSpeed  =   0       # speed of target
 rVeh    =   0.5     # physical radius of vehicle 
 exclusion = []      # initialization of what agents to exclude, default empty
@@ -440,26 +440,26 @@ plt.show()
 
 #%% Save data
 # -----------
-pickle_out = open("Data/t_all.pickle","wb")
-pickle.dump(t_all, pickle_out)
-pickle_out.close()
-pickle_out = open("Data/cmds_all.pickle","wb")
-pickle.dump(cmds_all, pickle_out)
-pickle_out.close()
-pickle_out = open("Data/states_all.pickle","wb")
-pickle.dump(states_all, pickle_out)
-pickle_out.close()
-pickle_out = open("Data/targets_all.pickle","wb")
-pickle.dump(targets_all, pickle_out)
-pickle_out.close()
-pickle_out = open("Data/obstacles_all.pickle","wb")
-pickle.dump(obstacles_all, pickle_out)
-pickle_out.close()
-pickle_out = open("Data/centroid_all.pickle","wb")
-pickle.dump(centroid_all, pickle_out)
-pickle_out = open("Data/lemni_all.pickle","wb")
-pickle.dump(lemni_all, pickle_out)
-pickle_out.close()
+# pickle_out = open("Data/t_all.pickle","wb")
+# pickle.dump(t_all, pickle_out)
+# pickle_out.close()
+# pickle_out = open("Data/cmds_all.pickle","wb")
+# pickle.dump(cmds_all, pickle_out)
+# pickle_out.close()
+# pickle_out = open("Data/states_all.pickle","wb")
+# pickle.dump(states_all, pickle_out)
+# pickle_out.close()
+# pickle_out = open("Data/targets_all.pickle","wb")
+# pickle.dump(targets_all, pickle_out)
+# pickle_out.close()
+# pickle_out = open("Data/obstacles_all.pickle","wb")
+# pickle.dump(obstacles_all, pickle_out)
+# pickle_out.close()
+# pickle_out = open("Data/centroid_all.pickle","wb")
+# pickle.dump(centroid_all, pickle_out)
+# pickle_out = open("Data/lemni_all.pickle","wb")
+# pickle.dump(lemni_all, pickle_out)
+# pickle_out.close()
 
 
 

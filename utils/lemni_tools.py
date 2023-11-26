@@ -23,7 +23,7 @@ from utils import encirclement_tools as encircle_tools
 
 # tunable
 c1_d        = 1             # gain for position (q)
-c2_d        = 1*np.sqrt(2)  # gain for velocity (p)
+c2_d        = 2*np.sqrt(2)  # gain for velocity (p)
 lemni_type  = 3
             
     # // Explcit definition of rotation (https://ieeexplore.ieee.org/document/9931405)

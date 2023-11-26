@@ -23,7 +23,7 @@ c2_d        = 4*np.sqrt(2)  # velocity (p)
 # parameters of the circle 
 r_max       = 50            # max distance to view neighbors (nominally, set high)
 r_desired   = 5             # desired radius of encirclement [m]
-phi_dot_d   = 0.1           # desired angular speed of encirclement [m/s] 0.05 # 0.12  
+phi_dot_d   = 0           # desired angular speed of encirclement [m/s] 0.05 # 0.12  
 
 # reference frames
 ref_plane = 'horizontal'                # defines reference plane (default horizontal)
