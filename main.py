@@ -50,10 +50,10 @@ from utils import pinning_tools, lemni_tools, starling_tools, swarm_metrics, too
 # ------------------
 np.random.seed(2)
 Ti      =   0       # initial time
-Tf      =   180     # final time (later, add a condition to break out when desirable conditions are met)
+Tf      =   390     # final time (later, add a condition to break out when desirable conditions are met)
 Ts      =   0.02    # sample time
-nVeh    =   7      # number of vehicles
-iSpread =   10      # initial spread of vehicles
+nVeh    =   24      # number of vehicles
+iSpread =   30      # initial spread of vehicles
 tSpeed  =   0       # speed of target
 rVeh    =   0.5     # physical radius of vehicle 
 exclusion = []      # initialization of what agents to exclude, default empty

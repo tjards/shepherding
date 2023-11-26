@@ -22,7 +22,7 @@ from utils import quaternions as quat
 
 #%% hyperparameters
 # -----------------
-nShepherds = 3  # number of shepherds (just herding = 0)
+nShepherds = 7  # number of shepherds (just herding = 0)
 
 # for herding
 r_R = 2         # repulsion radius
