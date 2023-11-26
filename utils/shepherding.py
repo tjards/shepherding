@@ -34,7 +34,7 @@ a_R = 0.5       # gain,repulsion
 a_O = 1         # gain orientation 
 a_A = 0.8       # gain, attraction 
 a_I = 1.2        # gain, agent interaction 
-a_V = 1      # gain, laziness (desire to stop)
+a_V = 0.2      # gain, laziness (desire to stop)
 
 # for shepherding
 r_S     = r_I - 1           # desired radius from herd
@@ -46,6 +46,12 @@ a_V_s   = 1*np.sqrt(a_N)    # gain, laziness (desire to stop)
 r_Oi    = 2                 # range to view obstacles (here, nearest shepherd)
 r_Od    = 1                 # desired distance from obtacles 
 r_Or    = 0.5               # radius of shepherd (uniform for all agents, for now)
+
+# techniques 
+shepherd_type = 'haver'
+
+
+
 
 # build an index distinguishing shepards from herd (1 = s, 0 = h)
 # --------------------------------------------------------------
@@ -194,8 +200,8 @@ def compute_cmd_herd(states_q, states_p, i, distinguish, seps_all):
 # -------------------------
 def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps_list):
     
-    # initialize a dict of angles
-    #angles = {}
+    # initialize
+    cmd = np.zeros((3,states_q.shape[1]))
     
     # find the indices for the shepherds
     indices_shep = [k for k, m in enumerate(distinguish) if m == 1]
@@ -204,59 +210,63 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
     for k in indices_shep:
         seps_list[k] = -seps_list[k]
         
-    # deal with the herd
-    # ------------------
+    # if using havermaet technique
+    # ----------------------------
+    if shepherd_type == 'haver':
     
-    # find the closest herd
-    closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
-    
-    # compute the normalized vector between closest in herd and target 
-    v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
-    
-    # compute the desired location to shepard
-    q_s = states_q[:,closest_herd] + r_S*v 
-    
-    # navigate to that position
-    cmd = a_N * np.divide(q_s-states_q[:,i],np.linalg.norm(q_s-states_q[:,i]))
-    
-    # urge to slow down
-    # ----------------
-    cmd += a_V_s * (-states_p[:,i])
-    
-    # deal with other shepherds (try just the angular separation piece of encirclement?)
-    # -------------------------
-    type_avoid = 'ref_point'
-    #    'ref_shepherd' = maintains rO_d from nearest shepherd
-    #    'ref_point'    = maintains rO_d from desired location between herd and inv-target       
-    
-    closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
-    q_cs = states_q[:,closest_shepherd]         # closest shepherd
-    d_cs = np.linalg.norm(q_cs-states_q[:,i])   # distance from that closest shepherd
-    
-    # maintain a desired separation from closest shepard (if within range)
-    if d_cs < r_Oi:
+        # deal with the herd
+        # ------------------
         
-        if type_avoid == 'ref_shepherd':
+        # find the closest herd
+        closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
         
-            bold_a_k = np.array(np.divide(states_q[:,i]-q_cs,d_cs), ndmin = 2)
-            P = np.identity(states_p.shape[0]) - np.multiply(bold_a_k,bold_a_k.transpose())
-            mu = np.divide(r_Or,d_cs) 
-            p_ik = mu*np.dot(P,states_p[:,i]) 
-            q_ik = mu*states_q[:,i]+(1-mu)*q_cs
-                        
-            cmd += a_R_s*phi_b(states_q[:,i], q_ik, sigma_norm(r_Od))*n_ij(states_q[:,i], q_ik) + a_R_s_v*b_ik(states_q[:,i], q_ik, sigma_norm(r_Od))*(p_ik - states_p[:,i])
-     
-        elif type_avoid == 'ref_point':
+        # compute the normalized vector between closest in herd and target 
+        v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
+        
+        # compute the desired location to shepard
+        q_s = states_q[:,closest_herd] + r_S*v 
+        
+        # navigate to that position
+        cmd = a_N * np.divide(q_s-states_q[:,i],np.linalg.norm(q_s-states_q[:,i]))
+        
+        # urge to slow down
+        # ----------------
+        cmd += a_V_s * (-states_p[:,i])
+        
+        # deal with other shepherds (try just the angular separation piece of encirclement?)
+        # -------------------------
+        type_avoid = 'ref_point'
+        #    'ref_shepherd' = maintains rO_d from nearest shepherd
+        #    'ref_point'    = maintains rO_d from desired location between herd and inv-target       
+        
+        closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
+        q_cs = states_q[:,closest_shepherd]         # closest shepherd
+        d_cs = np.linalg.norm(q_cs-states_q[:,i])   # distance from that closest shepherd
+        
+        # maintain a desired separation from closest shepard (if within range)
+        if d_cs < r_Oi:
             
-            d_s = np.linalg.norm(q_s-states_q[:,i])
+            if type_avoid == 'ref_shepherd':
             
-            bold_a_k = np.array(np.divide(states_q[:,i]-q_s,d_s), ndmin = 2)
-            P = np.identity(states_p.shape[0]) - np.multiply(bold_a_k,bold_a_k.transpose())
-            mu = np.divide(r_Or,d_s) 
-            p_ik = mu*np.dot(P,states_p[:,i]) 
-            q_ik = mu*states_q[:,i]+(1-mu)*q_s
-                        
-            cmd += a_R_s*phi_b(states_q[:,i], q_ik, sigma_norm(r_Od))*n_ij(states_q[:,i], q_ik) + a_R_s_v*b_ik(states_q[:,i], q_ik, sigma_norm(r_Od))*(p_ik - states_p[:,i])
+                bold_a_k = np.array(np.divide(states_q[:,i]-q_cs,d_cs), ndmin = 2)
+                P = np.identity(states_p.shape[0]) - np.multiply(bold_a_k,bold_a_k.transpose())
+                mu = np.divide(r_Or,d_cs) 
+                p_ik = mu*np.dot(P,states_p[:,i]) 
+                q_ik = mu*states_q[:,i]+(1-mu)*q_cs
+                            
+                cmd += a_R_s*phi_b(states_q[:,i], q_ik, sigma_norm(r_Od))*n_ij(states_q[:,i], q_ik) + a_R_s_v*b_ik(states_q[:,i], q_ik, sigma_norm(r_Od))*(p_ik - states_p[:,i])
+         
+            elif type_avoid == 'ref_point':
+                
+                d_s = np.linalg.norm(q_s-states_q[:,i])
+                
+                bold_a_k = np.array(np.divide(states_q[:,i]-q_s,d_s), ndmin = 2)
+                P = np.identity(states_p.shape[0]) - np.multiply(bold_a_k,bold_a_k.transpose())
+                mu = np.divide(r_Or,d_s) 
+                p_ik = mu*np.dot(P,states_p[:,i]) 
+                q_ik = mu*states_q[:,i]+(1-mu)*q_s
+                            
+                cmd += a_R_s*phi_b(states_q[:,i], q_ik, sigma_norm(r_Od))*n_ij(states_q[:,i], q_ik) + a_R_s_v*b_ik(states_q[:,i], q_ik, sigma_norm(r_Od))*(p_ik - states_p[:,i])
 
     return cmd
     

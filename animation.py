@@ -272,7 +272,9 @@ def animateMe(Ts, t_all, states_all, cmds_all, targets_all, obstacles_all, walls
                         z_lat[2*k_neigh:2*k_neigh+2,j] = pos[2,j]  
                 lattices[j].set_data(x_lat[:,j], y_lat[:,j])
                 lattices[j].set_3d_properties(z_lat[:,j])         
-        
+                
+                if tactic_type == 'shep' and pins_all[i*numFrames,j,j] == 1:
+                    lattices[j].set_color('r')
 
         # centroid
         # --------
