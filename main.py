@@ -9,6 +9,7 @@ This project implements an autonomous, decentralized swarming strategies includi
     - Dynamic Encirclement 
     - Pinning Control
     - Autonomous Assembly of Closed Curves
+    - Shepherding
 
 The strategies requires no human invervention once the target is selected and all agents rely on local knowledge only. 
 Each vehicle makes its own decisions about where to go based on its relative position to other vehicles.
@@ -34,6 +35,10 @@ plt.style.use('default')
 #plt.style.use('Solarize_Light2')
 import copy
 import random
+import json
+from datetime import datetime
+import os
+
 
 # from root folder
 #import animation 
@@ -46,14 +51,24 @@ from utils import encirclement_tools as encircle_tools
 from utils import pinning_tools, lemni_tools, starling_tools, swarm_metrics, tools, modeller
 #from utils import graph_tools
 
+#%% initialize data
+data = {}
+current_datetime = datetime.now()
+formatted_date = current_datetime.strftime("%Y%m%d_%H%M%S")
+data_directory = 'Data'
+file_path = os.path.join(data_directory, f"data_{formatted_date}.json")
+with open(file_path, 'w') as file:
+    json.dump(data, file)
+
+
 #%% Setup Simulation
 # ------------------
 np.random.seed(2)
 Ti      =   0       # initial time
-Tf      =   390     # final time (later, add a condition to break out when desirable conditions are met)
+Tf      =   30     # final time (later, add a condition to break out when desirable conditions are met)
 Ts      =   0.02    # sample time
-nVeh    =   24      # number of vehicles
-iSpread =   30      # initial spread of vehicles
+nVeh    =   7      # number of vehicles
+iSpread =   10      # initial spread of vehicles
 tSpeed  =   0       # speed of target
 rVeh    =   0.5     # physical radius of vehicle 
 exclusion = []      # initialization of what agents to exclude, default empty
@@ -440,26 +455,31 @@ plt.show()
 
 #%% Save data
 # -----------
-# pickle_out = open("Data/t_all.pickle","wb")
-# pickle.dump(t_all, pickle_out)
-# pickle_out.close()
-# pickle_out = open("Data/cmds_all.pickle","wb")
-# pickle.dump(cmds_all, pickle_out)
-# pickle_out.close()
-# pickle_out = open("Data/states_all.pickle","wb")
-# pickle.dump(states_all, pickle_out)
-# pickle_out.close()
-# pickle_out = open("Data/targets_all.pickle","wb")
-# pickle.dump(targets_all, pickle_out)
-# pickle_out.close()
-# pickle_out = open("Data/obstacles_all.pickle","wb")
-# pickle.dump(obstacles_all, pickle_out)
-# pickle_out.close()
-# pickle_out = open("Data/centroid_all.pickle","wb")
-# pickle.dump(centroid_all, pickle_out)
-# pickle_out = open("Data/lemni_all.pickle","wb")
-# pickle.dump(lemni_all, pickle_out)
-# pickle_out.close()
+data['Ti ']                 = Ti      
+data['Tf']                  = Tf     
+data['Ts']                  = Ts     
+data['nVeh']                = nVeh    
+data['iSpread']             = iSpread 
+data['tSpeed']              = tSpeed  
+data['rVeh']                = rVeh   
+data['tactic_type']         = tactic_type
+data['t_all']               = t_all.tolist()               
+data['states_all']          = states_all.tolist()          
+data['cmds_all']            = cmds_all.tolist()           
+data['targets_all']         = targets_all.tolist()         
+data['obstacles_all']       = obstacles_all.tolist()       
+data['centroid_all']        = centroid_all.tolist()        
+data['f_all']               = f_all.tolist()               
+data['lemni_all ']          = lemni_all.tolist()           
+data['nMetrics ']           = nMetrics             
+data['metrics_order_all']   = metrics_order_all.tolist()   
+data['pins_all']            = pins_all.tolist()            
+data['walls_plots']         = walls_plots.tolist()
+data['showObs']             = showObs
 
+with open(file_path, 'w') as file:
+    json.dump(data, file)
 
+with open(file_path, 'r') as file:
+    data_json = json.load(file)
 
