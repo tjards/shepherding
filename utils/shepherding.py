@@ -22,24 +22,25 @@ from utils import quaternions as quat
 import json
 from datetime import datetime
 import os
+from utils import pinning_tools
 
 #%% hyperparameters
 # -----------------
-nShepherds = 3  # number of shepherds (just herding = 0)
+nShepherds = 12  # number of shepherds (just herding = 0)
 
 # for herding
 r_R = 2         # repulsion radius
 r_O = 4         # orientation radius
 r_A = 7         # attraction radius (a_R < a_O < a_A)
-r_I = 6.5       # agent interaction radius (nominally, slighly < a_A)
+r_I = 5.5       # agent interaction radius (nominally, slighly < a_A)
 
 a_R = 0.5       # gain,repulsion 
 a_O = 1         # gain orientation 
 a_A = 0.8       # gain, attraction 
 a_I = 1.2        # gain, agent interaction 
-a_V = 0.2      # gain, laziness (desire to stop)
+a_V = 0.5      # gain, laziness (desire to stop)
 
-# for shepherding
+# for shepherding (break these out by technique)
 r_S     = r_I - 1           # desired radius from herd
 a_N     = 5                 # gain, navigation
 a_R_s   = 1                 # gain, shepards repel eachother
@@ -51,7 +52,16 @@ r_Od    = 1                 # desired distance from obtacles
 r_Or    = 0.5               # radius of shepherd (uniform for all agents, for now)
 
 # techniques 
-shepherd_type = 'haver'
+type_shepherd = 'pin_net'
+    #   'haver         = traditional approach to shepherding
+    #   'pin_net'      = builds a network with lattice and pins 
+
+type_avoid = 'ref_point'
+    #   'ref_shepherd' = maintains rO_d from nearest shepherd
+    #   'ref_point'    = maintains rO_d from desired location between herd and inv-target 
+
+
+
 
 # build an index distinguishing shepards from herd (1 = s, 0 = h)
 # --------------------------------------------------------------
@@ -209,22 +219,31 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
     # make them negative
     for k in indices_shep:
         seps_list[k] = -seps_list[k]
+     
+    # find the closest herd
+    closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
+    
+    # compute the normalized vector between closest in herd and target 
+    v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
         
+    # compute the desired location to shepard
+    q_s = states_q[:,closest_herd] + r_S*v    
+       
     # if using havermaet technique
     # ----------------------------
-    if shepherd_type == 'haver':
+    if type_shepherd == 'haver':
     
         # deal with the herd
         # ------------------
         
         # find the closest herd
-        closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
+        #closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
         
         # compute the normalized vector between closest in herd and target 
-        v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
+        #v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
         
         # compute the desired location to shepard
-        q_s = states_q[:,closest_herd] + r_S*v 
+        #q_s = states_q[:,closest_herd] + r_S*v 
         
         # navigate to that position
         cmd = a_N * np.divide(q_s-states_q[:,i],np.linalg.norm(q_s-states_q[:,i]))
@@ -234,10 +253,7 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
         cmd += a_V_s * (-states_p[:,i])
         
         # deal with other shepherds (try just the angular separation piece of encirclement?)
-        # -------------------------
-        type_avoid = 'ref_point'
-        #    'ref_shepherd' = maintains rO_d from nearest shepherd
-        #    'ref_point'    = maintains rO_d from desired location between herd and inv-target       
+        # -------------------------      
         
         closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
         q_cs = states_q[:,closest_shepherd]         # closest shepherd
@@ -267,7 +283,27 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
                 q_ik = mu*states_q[:,i]+(1-mu)*q_s
                             
                 cmd += a_R_s*phi_b(states_q[:,i], q_ik, sigma_norm(r_Od))*n_ij(states_q[:,i], q_ik) + a_R_s_v*b_ik(states_q[:,i], q_ik, sigma_norm(r_Od))*(p_ik - states_p[:,i])
-
+                
+    elif type_shepherd == 'pin_net':
+        
+        
+        #cmd_i[:,i] = pinning_tools.compute_cmd(centroid, states_q, states_p, obstacles, walls, targets, targets_v, i, pin_matrix)
+        # some messy substitutions just to get this working (need to add obs/walls later):
+        
+        # i only want to deal with the shepherds
+        #columns_to_delete = np.where(np.array(distinguish) == 0)[0]
+        shep_q = np.delete(states_q, np.where(np.array(distinguish) == 0)[0], axis=1)
+        shep_p = np.delete(states_p, np.where(np.array(distinguish) == 0)[0], axis=1)
+            
+        walls_temp = np.array([[-0.5 ],[ 0.25],[50.  ],[ 0.  ],[ 0.  ],[-2.  ]])
+        targets_shep = np.zeros((3,shep_q.shape[1]))
+        targets_shep[0:3,:] = q_s.reshape(3,1)
+        
+        # inefficient: this should be passed in      
+        pin_matrix_shep = pinning_tools.select_pins_components(shep_q) 
+        
+        cmd = pinning_tools.compute_cmd(centroid, shep_q, shep_p, np.zeros((4,1)), walls_temp, targets_shep, 0*targets_shep, i, pin_matrix_shep)     
+            
     return cmd
     
 def compute_cmd(targets, centroid, states_q, states_p, i):
@@ -293,13 +329,19 @@ def compute_cmd(targets, centroid, states_q, states_p, i):
         # do the shepherd stuff
         # ----------------------
         cmd =  compute_cmd_shep(targets,centroid, states_q, states_p, i, distinguish, list(seps_all[i,:]))   
-        
+    
+    # messy, but I want to show the shepherding pins as a different color, so    
+    if type_shepherd == 'pin_net':
+        pin_matrix = pinning_tools.select_pins_components(states_q)
+        if pin_matrix[i,i] == 1 and distinguish[i] == 1:
+            distinguish[i] = 2
+    
     return cmd*0.02, distinguish[i] #note, this is Ts, because output of above is velo, model is double integrator
     
 # store data
 # ----------
 data = {}
-data['shepherd_type'] = shepherd_type
+data['type_shepherd'] = type_shepherd
 data['r_R']         = r_R
 data['r_O']         = r_O
 data['r_A']         = r_A

@@ -49,22 +49,22 @@ from utils import graph_tools as grph
 # -----------------
 
 # key ranges 
-d       = 5             # lattice scale (desired distance between agents) 
+d       = 4.5             # lattice scale (desired distance between agents) 
 r       = 1.2*d         # range at which neighbours can be sensed 
 d_prime = 0.6*d         # desired separation 
 r_prime = 1.2*d_prime   # range at which obstacles can be sensed
 rg = d                  # range for graph analysis (nominally, d)
 
 # gains
-c1_a = 1                # cohesion
-c2_a = 2*np.sqrt(1)
-c1_b = 3                # obstacles 
-c2_b = 2*np.sqrt(3)
-c1_g = 2                # tracking (for the pins)
-c2_g = 2*np.sqrt(2)
+c1_a = 2                # cohesion
+c2_a = 2*np.sqrt(2)
+c1_b = 1                # obstacles 
+c2_b = 2*np.sqrt(1)
+c1_g = 3                # tracking (for the pins)
+c2_g = 2*np.sqrt(3)
 
 # pinning method
-method = 'gramian'
+method = 'degree'
 
     # gramian   = based on controllability gramian
     # degree    = based on degree centrality 
