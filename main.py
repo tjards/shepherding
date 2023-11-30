@@ -42,6 +42,7 @@ import os
 
 # from root folder
 #import animation 
+import swarmer
 import animation
 import dynamics_node as node
 import ctrl_tactic as tactic 
@@ -65,15 +66,22 @@ with open(file_path, 'w') as file:
 # ------------------
 #np.random.seed(2)
 Ti      =   0       # initial time
-Tf      =   240     # final time (later, add a condition to break out when desirable conditions are met)
+Tf      =   30     # final time (later, add a condition to break out when desirable conditions are met)
 Ts      =   0.02    # sample time
-nVeh    =   20      # number of vehicles
-iSpread =   20      # initial spread of vehicles
-tSpeed  =   0       # speed of target
-rVeh    =   0.5     # physical radius of vehicle 
+#nVeh    =   20      # number of vehicles
+#iSpread =   20      # initial spread of vehicles
+#tSpeed  =   0       # speed of target
+#rVeh    =   0.5     # physical radius of vehicle 
 exclusion = []      # initialization of what agents to exclude, default empty
 
-tactic_type = 'shep'     
+#%% create objects
+# --------------
+Agents = swarmer.Agents('circle',20)
+Targets = swarmer.Targets(0, Agents.nVeh)
+Obstacles = swarmer.Obstacles(Agents.tactic_type,0,Targets.targets)
+#%%
+
+#tactic_type = 'shep'     
                 # reynolds  = Reynolds flocking + Olfati-Saber obstacle
                 # saber     = Olfati-Saber flocking
                 # starling  = swarm like starlings 
@@ -83,52 +91,54 @@ tactic_type = 'shep'
                 # shep      = shepherding
 
 # if using reynolds, need make target an obstacle 
-if tactic_type == 'reynolds':
-    targetObs = 1
-else:
-    targetObs = 0    
+# if tactic_type == 'reynolds':
+#     targetObs = 1
+# else:
+#     targetObs = 0    
     
 # do we want to build a model in real time?
 #real_time_model = 'yes'
 
-# Vehicles states
-# ---------------
-state = np.zeros((6,nVeh))
-state[0,:] = iSpread*(np.random.rand(1,nVeh)-0.5)                   # position (x)
-state[1,:] = iSpread*(np.random.rand(1,nVeh)-0.5)                   # position (y)
-state[2,:] = np.maximum((iSpread*np.random.rand(1,nVeh)-0.5),2)+15  # position (z)
-state[3,:] = 0                                                      # velocity (vx)
-state[4,:] = 0                                                      # velocity (vy)
-state[5,:] = 0                                                      # velocity (vz)
-centroid = tools.centroid(state[0:3,:].transpose())
-centroid_v = tools.centroid(state[3:6,:].transpose())
-# select a pin (for pinning control)
-pin_matrix = np.zeros((nVeh,nVeh))
-if tactic_type == 'pinning':
-    pin_matrix = pinning_tools.select_pins_components(state[0:3,:])
 
-# Commands
-# --------
-cmd = np.zeros((3,nVeh))
-cmd[0] = np.random.rand(1,nVeh)-0.5      # command (x)
-cmd[1] = np.random.rand(1,nVeh)-0.5      # command (y)
-cmd[2] = np.random.rand(1,nVeh)-0.5      # command (z)
+
+# # Vehicles states
+# # ---------------
+# state = np.zeros((6,nVeh))
+# state[0,:] = iSpread*(np.random.rand(1,nVeh)-0.5)                   # position (x)
+# state[1,:] = iSpread*(np.random.rand(1,nVeh)-0.5)                   # position (y)
+# state[2,:] = np.maximum((iSpread*np.random.rand(1,nVeh)-0.5),2)+15  # position (z)
+# state[3,:] = 0                                                      # velocity (vx)
+# state[4,:] = 0                                                      # velocity (vy)
+# state[5,:] = 0                                                      # velocity (vz)
+# centroid = tools.centroid(state[0:3,:].transpose())
+# centroid_v = tools.centroid(state[3:6,:].transpose())
+# # select a pin (for pinning control)
+# pin_matrix = np.zeros((nVeh,nVeh))
+# if tactic_type == 'pinning':
+#     pin_matrix = pinning_tools.select_pins_components(state[0:3,:])
+
+# # Commands
+# # --------
+# cmd = np.zeros((3,nVeh))
+# cmd[0] = np.random.rand(1,nVeh)-0.5      # command (x)
+# cmd[1] = np.random.rand(1,nVeh)-0.5      # command (y)
+# cmd[2] = np.random.rand(1,nVeh)-0.5      # command (z)
 
 # Targets
 # -------
-targets = 4*(np.random.rand(6,nVeh)-0.5)
-targets[0,:] = 0 #5*(np.random.rand(1,nVeh)-0.5)
-targets[1,:] = 0 #5*(np.random.rand(1,nVeh)-0.5)
-targets[2,:] = 15
-targets[3,:] = 0
-targets[4,:] = 0
-targets[5,:] = 0
-targets_encircle = targets.copy()
-error = state[0:3,:] - targets[0:3,:]
+# targets = 4*(np.random.rand(6,nVeh)-0.5)
+# targets[0,:] = 0 #5*(np.random.rand(1,nVeh)-0.5)
+# targets[1,:] = 0 #5*(np.random.rand(1,nVeh)-0.5)
+# targets[2,:] = 15
+# targets[3,:] = 0
+# targets[4,:] = 0
+# targets[5,:] = 0
+targets_encircle = Targets.targets.copy()
+error = Agents.state[0:3,:] - Targets.targets[0:3,:]
 
 # Other Parameters
 # ----------------
-params = np.zeros((4,nVeh))  # store dynamic parameters
+#params = np.zeros((4,nVeh))  # store dynamic parameters
 
 # do I want to model in realtime?
 #if real_time_model == 'yes':
@@ -137,50 +147,50 @@ params = np.zeros((4,nVeh))  # store dynamic parameters
 
 #%% Define obstacles (kind of a manual process right now)
 # ------------------------------------------------------
-nObs    = 0     # number of obstacles 
-vehObs  = 0     # include other vehicles as obstacles [0 = no, 1 = yes] 
+# nObs    = 0     # number of obstacles 
+# vehObs  = 0     # include other vehicles as obstacles [0 = no, 1 = yes] 
 
-# there are no obstacle, but we need to make target an obstacle 
-if nObs == 0 and targetObs == 1:
-    nObs = 1
+# # there are no obstacle, but we need to make target an obstacle 
+# if nObs == 0 and targetObs == 1:
+#     nObs = 1
 
-obstacles = np.zeros((4,nObs))
-oSpread = 10
+# obstacles = np.zeros((4,nObs))
+# oSpread = 10
 
-# manual (comment out if random)
-# obstacles[0,:] = 0    # position (x)
-# obstacles[1,:] = 0    # position (y)
-# obstacles[2,:] = 0    # position (z)
-# obstacles[3,:] = 0
+# # manual (comment out if random)
+# # obstacles[0,:] = 0    # position (x)
+# # obstacles[1,:] = 0    # position (y)
+# # obstacles[2,:] = 0    # position (z)
+# # obstacles[3,:] = 0
 
-#random (comment this out if manual)
-if nObs != 0:
-    obstacles[0,:] = oSpread*(np.random.rand(1,nObs)-0.5)+targets[0,0]                   # position (x)
-    obstacles[1,:] = oSpread*(np.random.rand(1,nObs)-0.5)+targets[1,0]                   # position (y)
-    obstacles[2,:] = oSpread*(np.random.rand(1,nObs)-0.5)+targets[2,0]                  # position (z)
-    #obstacles[2,:] = np.maximum(oSpread*(np.random.rand(1,nObs)-0.5),14)     # position (z)
-    obstacles[3,:] = np.random.rand(1,nObs)+1                             # radii of obstacle(s)
+# #random (comment this out if manual)
+# if nObs != 0:
+#     obstacles[0,:] = oSpread*(np.random.rand(1,nObs)-0.5)+targets[0,0]                   # position (x)
+#     obstacles[1,:] = oSpread*(np.random.rand(1,nObs)-0.5)+targets[1,0]                   # position (y)
+#     obstacles[2,:] = oSpread*(np.random.rand(1,nObs)-0.5)+targets[2,0]                  # position (z)
+#     #obstacles[2,:] = np.maximum(oSpread*(np.random.rand(1,nObs)-0.5),14)     # position (z)
+#     obstacles[3,:] = np.random.rand(1,nObs)+1                             # radii of obstacle(s)
 
-# manually make the first target an obstacle
-if targetObs == 1:
-    obstacles[0,0] = targets[0,0]     # position (x)
-    obstacles[1,0] = targets[1,0]     # position (y)
-    obstacles[2,0] = targets[2,0]     # position (z)
-    obstacles[3,0] = 2              # radii of obstacle(s)
+# # manually make the first target an obstacle
+# if targetObs == 1:
+#     obstacles[0,0] = targets[0,0]     # position (x)
+#     obstacles[1,0] = targets[1,0]     # position (y)
+#     obstacles[2,0] = targets[2,0]     # position (z)
+#     obstacles[3,0] = 2              # radii of obstacle(s)
 
-# Walls/Floors 
-# - these are defined manually as planes
-# --------------------------------------   
-nWalls = 1                      # default 1, as the ground is an obstacle 
-walls = np.zeros((6,nWalls)) 
-walls_plots = np.zeros((4,nWalls))
+# # Walls/Floors 
+# # - these are defined manually as planes
+# # --------------------------------------   
+# nWalls = 1                      # default 1, as the ground is an obstacle 
+# walls = np.zeros((6,nWalls)) 
+# walls_plots = np.zeros((4,nWalls))
 
-# add the ground at z = 0:
-newWall0, newWall_plots0 = tools.buildWall('horizontal', -2) 
+# # add the ground at z = 0:
+# newWall0, newWall_plots0 = tools.buildWall('horizontal', -2) 
 
-# load the ground into constraints   
-walls[:,0] = newWall0[:,0]
-walls_plots[:,0] = newWall_plots0[:,0]
+# # load the ground into constraints   
+# walls[:,0] = newWall0[:,0]
+# walls_plots[:,0] = newWall_plots0[:,0]
 
 # add other planes (comment out by default)
 
@@ -206,42 +216,46 @@ t = Ti
 i = 1
 f = 0         # parameter for future use
 
-nSteps = int(Tf/Ts+1)
 
-# initialize a bunch of storage 
-t_all               = np.zeros(nSteps)
-states_all          = np.zeros([nSteps, len(state), nVeh])
-cmds_all            = np.zeros([nSteps, len(cmd), nVeh])
-targets_all         = np.zeros([nSteps, len(targets), nVeh])
-obstacles_all       = np.zeros([nSteps, len(obstacles), nObs])
-centroid_all        = np.zeros([nSteps, len(centroid), 1])
-f_all               = np.ones(nSteps)
-lemni_all           = np.zeros([nSteps, nVeh])
-# metrics_order_all   = np.zeros((nSteps,7))
-# metrics_order       = np.zeros((1,7))
-nMetrics            = 12 # there are 11 positions being used.    
-metrics_order_all   = np.zeros((nSteps,nMetrics))
-metrics_order       = np.zeros((1,nMetrics))
-pins_all            = np.zeros([nSteps, nVeh, nVeh]) 
-# note: for pinning control, pins denote pins as a 1
-# also used in lemni to denote membership in swarm as 0
+History = swarmer.History(Agents, Targets, Obstacles, Ts, Tf, Ti, f)
 
-# store the initial conditions
-t_all[0]                = Ti
-states_all[0,:,:]       = state
-cmds_all[0,:,:]         = cmd
-targets_all[0,:,:]      = targets
-obstacles_all[0,:,:]    = obstacles
-centroid_all[0,:,:]     = centroid
-f_all[0]                = f
-metrics_order_all[0,:]  = metrics_order
-lemni                   = np.zeros([1, nVeh])
-lemni_all[0,:]          = lemni
-pins_all[0,:,:]         = pin_matrix       
+
+# nSteps = int(Tf/Ts+1)
+
+# # initialize a bunch of storage 
+# t_all               = np.zeros(nSteps)
+# states_all          = np.zeros([nSteps, len(state), nVeh])
+# cmds_all            = np.zeros([nSteps, len(cmd), nVeh])
+# targets_all         = np.zeros([nSteps, len(targets), nVeh])
+# obstacles_all       = np.zeros([nSteps, len(obstacles), nObs])
+# centroid_all        = np.zeros([nSteps, len(centroid), 1])
+# f_all               = np.ones(nSteps)
+# lemni_all           = np.zeros([nSteps, nVeh])
+# # metrics_order_all   = np.zeros((nSteps,7))
+# # metrics_order       = np.zeros((1,7))
+# nMetrics            = 12 # there are 11 positions being used.    
+# metrics_order_all   = np.zeros((nSteps,nMetrics))
+# metrics_order       = np.zeros((1,nMetrics))
+# pins_all            = np.zeros([nSteps, nVeh, nVeh]) 
+# # note: for pinning control, pins denote pins as a 1
+# # also used in lemni to denote membership in swarm as 0
+
+# # store the initial conditions
+# t_all[0]                = Ti
+# states_all[0,:,:]       = state
+# cmds_all[0,:,:]         = cmd
+# targets_all[0,:,:]      = targets
+# obstacles_all[0,:,:]    = obstacles
+# centroid_all[0,:,:]     = centroid
+# f_all[0]                = f
+# metrics_order_all[0,:]  = metrics_order
+# lemni                   = np.zeros([1, nVeh])
+# lemni_all[0,:]          = lemni
+# pins_all[0,:,:]         = pin_matrix       
 
 # we need to move the 'target' for mobbing (a type of lemniscate)
-if tactic_type == 'lemni':
-    targets = lemni_tools.check_targets(targets)
+if Agents.tactic_type == 'lemni':
+    Targets.targets = lemni_tools.check_targets(Targets.targets)
     
 #%% start the simulation
 # --------------------
@@ -250,9 +264,11 @@ while round(t,3) < Tf:
     
     # Evolve the target
     # -----------------
-    targets[0,:] = 100*np.sin(tSpeed*t)                 # targets[0,:] + tSpeed*0.002
-    targets[1,:] = 100*np.sin(tSpeed*t)*np.cos(tSpeed*t)  # targets[1,:] + tSpeed*0.005
-    targets[2,:] = 100*np.sin(tSpeed*t)*np.sin(tSpeed*t)+15  # targets[2,:] + tSpeed*0.0005
+    #targets[0,:] = 100*np.sin(tSpeed*t)                 # targets[0,:] + tSpeed*0.002
+    #targets[1,:] = 100*np.sin(tSpeed*t)*np.cos(tSpeed*t)  # targets[1,:] + tSpeed*0.005
+    #targets[2,:] = 100*np.sin(tSpeed*t)*np.sin(tSpeed*t)+15  # targets[2,:] + tSpeed*0.0005
+    
+    Targets.evolve(t)
     
     # For pinning application, we may set the first agent as the "pin",
     # which means all other targets have to be set to the pin
@@ -264,10 +280,12 @@ while round(t,3) < Tf:
     
     # Update the obstacles (if required)
     # ----------------------------------
-    if targetObs == 1:
-        obstacles[0,0] = targets[0,0]     # position (x)
-        obstacles[1,0] = targets[1,0]     # position (y)
-        obstacles[2,0] = targets[2,0]     # position (z)
+    # if targetObs == 1:
+    #     obstacles[0,0] = targets[0,0]     # position (x)
+    #     obstacles[1,0] = targets[1,0]     # position (y)
+    #     obstacles[2,0] = targets[2,0]     # position (z)
+
+    Obstacles.evolve(Targets.targets)
 
     # modeller: load the current states (x,v), centroid states (x,v) and inputs (of the first agent)
     # -------------------------------------------------------------------------------
@@ -275,21 +293,23 @@ while round(t,3) < Tf:
 
     # Evolve the states
     # -----------------
-    state = node.evolve(Ts, state, cmd)
+    #state = node.evolve(Ts, state, cmd)
     #state = node.evolve_sat(Ts, state, cmd)
+    
+    Agents.evolve(Ts)
      
     # Store results
     # -------------
-    t_all[i]                = t
-    states_all[i,:,:]       = state
-    cmds_all[i,:,:]         = cmd
-    targets_all[i,:,:]      = targets
-    obstacles_all[i,:,:]    = obstacles
-    centroid_all[i,:,:]     = centroid
-    f_all[i]                = f
-    lemni_all[i,:]          = lemni
-    metrics_order_all[i,:]  = metrics_order
-    pins_all[i,:,:]         = pin_matrix  
+    History.t_all[i]                = t
+    History.states_all[i,:,:]       = Agents.state
+    History.cmds_all[i,:,:]         = Agents.cmd
+    History.targets_all[i,:,:]      = Targets.targets
+    History.obstacles_all[i,:,:]    = Obstacles.obstacles
+    History.centroid_all[i,:,:]     = Agents.centroid
+    History.f_all[i]                = f
+    History.lemni_all[i,:]          = Agents.lemni
+    History.metrics_order_all[i,:]  = History.metrics_order
+    History.pins_all[i,:,:]         = Agents.pin_matrix  
     
     # Increment 
     # ---------
@@ -345,48 +365,55 @@ while round(t,3) < Tf:
     #     exclusion = []
 
            
-    # create a temp exlusionary set
-    state_ = np.delete(state, [exclusion], axis = 1)
-    targets_ = np.delete(targets, [exclusion], axis = 1)
-    lemni_all_ = np.delete(lemni_all, [exclusion], axis = 1)
+    # note: have not incorporated exclusions in objectify1 
         
+    # create a temp exlusionary set
+    #state_ = np.delete(state, [exclusion], axis = 1)
+    #targets_ = np.delete(targets, [exclusion], axis = 1)
+    #lemni_all_ = np.delete(lemni_all, [exclusion], axis = 1)
+        
+    
+    
     #if flocking
-    if tactic_type == 'reynolds' or tactic_type == 'saber' or tactic_type == 'starling' or tactic_type == 'pinning' or tactic_type == 'shep':
-        trajectory = targets 
+    if Agents.tactic_type == 'reynolds' or Agents.tactic_type == 'saber' or Agents.tactic_type == 'starling' or Agents.tactic_type == 'pinning' or Agents.tactic_type == 'shep':
+        Targets.trajectory = Targets.targets.copy() 
     
     # if encircling
-    if tactic_type == 'circle':
-        #trajectory, _ = encircle_tools.encircle_target(targets, state)
-        trajectory, _ = encircle_tools.encircle_target(targets_, state_)
+    if Agents.tactic_type == 'circle':
+        Targets.trajectory, _ = encircle_tools.encircle_target(Targets.targets, Agents.state)
+        #trajectory, _ = encircle_tools.encircle_target(targets_, state_)
     
     # if lemniscating
-    elif tactic_type == 'lemni':
-        #trajectory, lemni = lemni_tools.lemni_target(lemni_all,state,targets,i,t)
-        trajectory, lemni = lemni_tools.lemni_target(lemni_all_,state_,targets_,i,t)
+    elif Agents.tactic_type == 'lemni':
+        Targets.trajectory, Agents.lemni = lemni_tools.lemni_target(History.lemni_all,Agents.state,Targets.targets,i,t)
+        #trajectory, lemni = lemni_tools.lemni_target(lemni_all_,state_,targets_,i,t)
 
-    # add exluded back in
-    for ii in exclusion:
-        trajectory = np.insert(trajectory,ii,targets[:,ii],axis = 1)
-        trajectory[0:2,ii] = ii + 5 # just move away from the swarm
-        trajectory[2,ii] = 15 + ii 
-        lemni = np.insert(lemni,ii,lemni_all[i-1,ii],axis = 1)
-        # label excluded as pins (for plotting colors only)
-        pins_all[i-1,ii,ii] = 1       
+    # # add exluded back in
+    # for ii in exclusion:
+    #     trajectory = np.insert(trajectory,ii,targets[:,ii],axis = 1)
+    #     trajectory[0:2,ii] = ii + 5 # just move away from the swarm
+    #     trajectory[2,ii] = 15 + ii 
+    #     lemni = np.insert(lemni,ii,lemni_all[i-1,ii],axis = 1)
+    #     # label excluded as pins (for plotting colors only)
+    #     pins_all[i-1,ii,ii] = 1       
             
     #%% Prep for compute commands (next step)
     # ----------------------------
-    states_q = state[0:3,:]     # positions
-    states_p = state[3:6,:]     # velocities 
+    
+    # note: remove these states_q, states_p and make Metrics its own class (not history)
+    
+    states_q = Agents.state[0:3,:]     # positions
+    states_p = Agents.state[3:6,:]     # velocities 
     
     # Compute metrics
     # ---------------
-    centroid                = tools.centroid(state[0:3,:].transpose())
-    centroid_v              = tools.centroid(state[3:6,:].transpose())
-    swarm_prox              = tools.sigma_norm(centroid.ravel()-targets[0:3,0])
-    metrics_order[0,0]      = swarm_metrics.order(states_p)
-    metrics_order[0,1:7]    = swarm_metrics.separation(states_q,targets[0:3,:],obstacles)
-    metrics_order[0,7:9]    = swarm_metrics.energy(cmd)
-    metrics_order[0,9:12]   = swarm_metrics.spacing(states_q)
+    Agents.centroid                = tools.centroid(Agents.state[0:3,:].transpose())
+    Agents.centroid_v              = tools.centroid(Agents.state[3:6,:].transpose())
+    swarm_prox              = tools.sigma_norm(Agents.centroid.ravel()-Targets.targets[0:3,0])
+    History.metrics_order[0,0]      = swarm_metrics.order(states_p)
+    History.metrics_order[0,1:7]    = swarm_metrics.separation(states_q,Targets.targets[0:3,:],Obstacles.obstacles)
+    History.metrics_order[0,7:9]    = swarm_metrics.energy(Agents.cmd)
+    History.metrics_order[0,9:12]   = swarm_metrics.spacing(states_q)
         
     # load the updated centroid states (x,v)
     # ---------------------------------------
@@ -398,16 +425,24 @@ while round(t,3) < Tf:
 
     # Add other vehicles as obstacles (optional, default = 0)
     # -------------------------------------------------------
-    if vehObs == 0: 
-        obstacles_plus = obstacles
-    elif vehObs == 1:
-        states_plus = np.vstack((state[0:3,:], rVeh*np.ones((1,state.shape[1])))) 
-        obstacles_plus = np.hstack((obstacles, states_plus))
+    
+    # note: make this an "adjust" method in Obstacles and Agents class
+    
+    if Obstacles.vehObs == 0: 
+        Obstacles.obstacles_plus = Obstacles.obstacles.copy()
+    elif Obstacles.vehObs == 1:
+        states_plus = np.vstack((Agents.state[0:3,:], Agents.rVeh*np.ones((1,Agents.state.shape[1])))) 
+        Obstacles.obstacles_plus = np.hstack((Obstacles.obstacles, states_plus))
             
     #%% Compute the commads (next step)
-    # --------------------------------       
-    cmd, params, pin_matrix = tactic.commands(states_q, states_p, obstacles_plus, walls, targets[0:3,:], targets[3:6,:], trajectory[0:3,:], trajectory[3:6,:], swarm_prox, tactic_type, centroid, params)
-       
+    # -------------------------------- 
+
+    # note: consolidate these now that I have a Class
+      
+    #cmd, params, pin_matrix = tactic.commands(states_q, states_p, obstacles_plus, walls, targets[0:3,:], targets[3:6,:], trajectory[0:3,:], trajectory[3:6,:], swarm_prox, tactic_type, centroid, params) 
+    Agents.cmd, Agents.params, Agents.pin_matrix = tactic.commands(states_q, states_p, Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Targets.trajectory[0:3,:], Targets.trajectory[3:6,:], swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)
+    
+    
 #%% Produce animation of simulation
 # ---------------------------------
 #print('here1')
@@ -420,66 +455,68 @@ showObs     = 0 # (0 = don't show obstacles, 1 = show obstacles, 2 = show obstac
 #     B_max = max(B, key=B.get)
 #     pins_all[:,B_max,B_max] = 2
 #ani = animation.animateMe(Ts, t_all, states_all, cmds_all, targets_all[:,0:3,:], obstacles_all, walls_plots, showObs, centroid_all, f_all, tactic_type, pins_all)    
-ani = animation.animateMe(Ts, t_all, states_all, cmds_all, targets_all[:,0:3,:], obstacles_all, walls_plots, showObs, centroid_all, f_all, tactic_type, pins_all)    
-    
-#%% Produce plots
-# --------------
+#ani = animation.animateMe(Ts, t_all, states_all, cmds_all, targets_all[:,0:3,:], obstacles_all, walls_plots, showObs, centroid_all, f_all, tactic_type, pins_all)    
+ani = animation.animateMe(Ts, History.t_all, History.states_all, History.cmds_all, History.targets_all[:,0:3,:], History.obstacles_all, Obstacles.walls_plots, showObs, History.centroid_all, History.f_all, Agents.tactic_type, History.pins_all)       
 
-# separtion 
-fig, ax = plt.subplots()
-ax.plot(t_all[4::],metrics_order_all[4::,1],'-b')
-ax.plot(t_all[4::],metrics_order_all[4::,5],':b')
-ax.plot(t_all[4::],metrics_order_all[4::,6],':b')
-ax.fill_between(t_all[4::], metrics_order_all[4::,5], metrics_order_all[4::,6], color = 'blue', alpha = 0.1)
-#note: can include region to note shade using "where = Y2 < Y1
-ax.set(xlabel='Time [s]', ylabel='Mean Distance (with Min/Max Bounds) [m]',
-       title='Separation between Agents')
-#ax.plot([70, 70], [100, 250], '--b', lw=1)
-#ax.hlines(y=5, xmin=Ti, xmax=Tf, linewidth=1, color='r', linestyle='--')
-ax.grid()
-plt.show()
 
-# radii from target
-radii = np.zeros([states_all.shape[2],states_all.shape[0]])
-for i in range(0,states_all.shape[0]):
-    for j in range(0,states_all.shape[2]):
-        radii[j,i] = np.linalg.norm(states_all[i,:,j] - targets_all[i,:,j])
+# #%% Produce plots
+# # --------------
+
+# # separtion 
+# fig, ax = plt.subplots()
+# ax.plot(t_all[4::],metrics_order_all[4::,1],'-b')
+# ax.plot(t_all[4::],metrics_order_all[4::,5],':b')
+# ax.plot(t_all[4::],metrics_order_all[4::,6],':b')
+# ax.fill_between(t_all[4::], metrics_order_all[4::,5], metrics_order_all[4::,6], color = 'blue', alpha = 0.1)
+# #note: can include region to note shade using "where = Y2 < Y1
+# ax.set(xlabel='Time [s]', ylabel='Mean Distance (with Min/Max Bounds) [m]',
+#        title='Separation between Agents')
+# #ax.plot([70, 70], [100, 250], '--b', lw=1)
+# #ax.hlines(y=5, xmin=Ti, xmax=Tf, linewidth=1, color='r', linestyle='--')
+# ax.grid()
+# plt.show()
+
+# # radii from target
+# radii = np.zeros([states_all.shape[2],states_all.shape[0]])
+# for i in range(0,states_all.shape[0]):
+#     for j in range(0,states_all.shape[2]):
+#         radii[j,i] = np.linalg.norm(states_all[i,:,j] - targets_all[i,:,j])
         
-fig, ax = plt.subplots()
-for j in range(0,states_all.shape[2]):
-    ax.plot(t_all[4::],radii[j,4::].ravel(),'-b')
-ax.set(xlabel='Time [s]', ylabel='Distance from Target for Each Agent [m]',
-       title='Distance from Target')
-plt.axhline(y = 5, color = 'k', linestyle = '--')
-plt.show()
+# fig, ax = plt.subplots()
+# for j in range(0,states_all.shape[2]):
+#     ax.plot(t_all[4::],radii[j,4::].ravel(),'-b')
+# ax.set(xlabel='Time [s]', ylabel='Distance from Target for Each Agent [m]',
+#        title='Distance from Target')
+# plt.axhline(y = 5, color = 'k', linestyle = '--')
+# plt.show()
 
-#%% Save data
-# -----------
-data['Ti ']                 = Ti      
-data['Tf']                  = Tf     
-data['Ts']                  = Ts     
-data['nVeh']                = nVeh    
-data['iSpread']             = iSpread 
-data['tSpeed']              = tSpeed  
-data['rVeh']                = rVeh   
-data['tactic_type']         = tactic_type
-data['t_all']               = t_all.tolist()               
-data['states_all']          = states_all.tolist()          
-data['cmds_all']            = cmds_all.tolist()           
-data['targets_all']         = targets_all.tolist()         
-data['obstacles_all']       = obstacles_all.tolist()       
-data['centroid_all']        = centroid_all.tolist()        
-data['f_all']               = f_all.tolist()               
-data['lemni_all ']          = lemni_all.tolist()           
-data['nMetrics ']           = nMetrics             
-data['metrics_order_all']   = metrics_order_all.tolist()   
-data['pins_all']            = pins_all.tolist()            
-data['walls_plots']         = walls_plots.tolist()
-data['showObs']             = showObs
+# #%% Save data
+# # -----------
+# data['Ti ']                 = Ti      
+# data['Tf']                  = Tf     
+# data['Ts']                  = Ts     
+# data['nVeh']                = nVeh    
+# data['iSpread']             = iSpread 
+# data['tSpeed']              = tSpeed  
+# data['rVeh']                = rVeh   
+# data['tactic_type']         = tactic_type
+# data['t_all']               = t_all.tolist()               
+# data['states_all']          = states_all.tolist()          
+# data['cmds_all']            = cmds_all.tolist()           
+# data['targets_all']         = targets_all.tolist()         
+# data['obstacles_all']       = obstacles_all.tolist()       
+# data['centroid_all']        = centroid_all.tolist()        
+# data['f_all']               = f_all.tolist()               
+# data['lemni_all ']          = lemni_all.tolist()           
+# data['nMetrics ']           = nMetrics             
+# data['metrics_order_all']   = metrics_order_all.tolist()   
+# data['pins_all']            = pins_all.tolist()            
+# data['walls_plots']         = walls_plots.tolist()
+# data['showObs']             = showObs
 
-with open(file_path, 'w') as file:
-    json.dump(data, file)
+# with open(file_path, 'w') as file:
+#     json.dump(data, file)
 
-with open(file_path, 'r') as file:
-    data_json = json.load(file)
+# with open(file_path, 'r') as file:
+#     data_json = json.load(file)
 
