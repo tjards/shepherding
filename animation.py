@@ -27,12 +27,26 @@ connection          = 1     # show connections?
 connection_thresh   = 5.1   # nominally 5.1. how close do agents need to be in order to connect?
 head                = 0.2   # size of head pointing forward (shows directionality)
 pins_overide        = 1     # default 0, overides using pin variable for colors
-
+showObs             = 0     # (0 = don't show obstacles, 1 = show obstacles, 2 = show obstacles + floors/walls)
 
 # main animation function
 # -----------------------
-def animateMe(Ts, t_all, states_all, cmds_all, targets_all, obstacles_all, walls_plots, showObs, centroid_all, f, tactic_type, pins_all):
-
+#def animateMe(Ts, t_all, states_all, cmds_all, targets_all, obstacles_all, walls_plots, showObs, centroid_all, f, tactic_type, pins_all):
+def animateMe(Ts, History, Obstacles, tactic_type):
+    
+    # extract
+    # -------
+    t_all           = History.t_all
+    states_all      = History.states_all
+    cmds_all        = History.cmds_all
+    targets_all     = History.targets_all[:,0:3,:]
+    obstacles_all   = History.obstacles_all
+    walls_plots     = Obstacles.walls_plots
+    centroid_all    = History.centroid_all
+    f               = History.f_all
+    pins_all        = History.pins_all
+  
+    
     # pull out key variables
     # ----------------------
     nVeh = states_all.shape[2]

@@ -9,7 +9,7 @@ Created on Wed Nov 29 19:07:07 2023
 # import stuff
 # ------------
 import numpy as np
-from utils import tools # do I really need this module?
+from utils import tools, swarm_metrics # do I really need this module?
 
 
 class Agents:
@@ -59,26 +59,26 @@ class Agents:
         # ----------------
         self.params = np.zeros((4,self.nVeh))  # store dynamic parameters
         self.lemni                   = np.zeros([1, self.nVeh])
-
-        
-        
+    
+    # evolve through agent dynamics
+    # -----------------------------    
     def evolve(self, Ts):
         
         # constraints
         #vmax = 1000
         #vmin = -1000
 
-        #discretized doubple integrator 
+        #discretized double integrator 
         self.state[0:3,:] = self.state[0:3,:] + self.state[3:6,:]*Ts
         self.state[3:6,:] = self.state[3:6,:] + self.cmd[:,:]*Ts
+        self.centroid = tools.centroid(self.state[0:3,:].transpose())
+        self.centroid_v = tools.centroid(self.state[3:6,:].transpose())
+        
         #state[3:6,:] = np.minimum(np.maximum(state[3:6,:] + cmd[:,:]*Ts, -vmax), vmax)
         #state[3:6,:] = np.minimum(np.maximum(state[3:6,:] + cmd[:,:]*Ts, vmin), vmax)
         #state[3:6,:] = clamp_norm(state[3:6,:] + cmd[:,:]*Ts,vmax)
         #state[3:6,:] = clamp_norm_min(clamp_norm(state[3:6,:] + cmd[:,:]*Ts,vmax),vmin)
         
-        
-        
-
 class Targets:
 
     def __init__(self, tspeed, nVeh):
@@ -109,7 +109,6 @@ class Obstacles:
         
         # initiate attributes
         # -------------------
-        
         self.nObs    = nObs     # number of obstacles 
         self.vehObs  = 0     # include other vehicles as obstacles [0 = no, 1 = yes] 
 
@@ -162,15 +161,22 @@ class Obstacles:
         self.walls_plots[:,0] = newWall_plots0[:,0]
         
         self.obstacles_plus = self.obstacles.copy()
-        
-        
-    def evolve(self, targets):
+              
+    def evolve(self, targets, state, rVeh):
         
         if self.targetObs == 1:
             self.obstacles[0,0] = targets[0,0]     # position (x)
             self.obstacles[1,0] = targets[1,0]     # position (y)
             self.obstacles[2,0] = targets[2,0]     # position (z)
-        
+            
+         # Add other vehicles as obstacles (optional, default = 0)
+         # -------------------------------------------------------  
+        if self.vehObs == 0: 
+            self.obstacles_plus = self.obstacles.copy()
+        elif self.vehObs == 1:
+            states_plus = np.vstack((state[0:3,:], rVeh*np.ones((1,state.shape[1])))) 
+            self.obstacles_plus = np.hstack((self.obstacles, states_plus))   
+            
 class History:
     
     # note: break out the Metrics stuff int another class 
@@ -196,6 +202,8 @@ class History:
         self.pins_all            = np.zeros([nSteps, Agents.nVeh, Agents.nVeh]) 
         # note: for pinning control, pins denote pins as a 1
         # also used in lemni to denote membership in swarm as 0
+        
+        self.swarm_prox = 0
 
         # store the initial conditions
         self.t_all[0]                = Ti
@@ -210,5 +218,24 @@ class History:
         self.lemni_all[0,:]          = Agents.lemni
         self.pins_all[0,:,:]         = Agents.pin_matrix     
         
-
+    def update(self, Agents, Targets, Obstacles, t, f, i):
+        
+        # core 
+        self.t_all[i]                = t
+        self.states_all[i,:,:]       = Agents.state
+        self.cmds_all[i,:,:]         = Agents.cmd
+        self.targets_all[i,:,:]      = Targets.targets
+        self.obstacles_all[i,:,:]    = Obstacles.obstacles
+        self.centroid_all[i,:,:]     = Agents.centroid
+        self.f_all[i]                = f
+        self.lemni_all[i,:]          = Agents.lemni
+        self.pins_all[i,:,:]         = Agents.pin_matrix 
+        
+        # metrics
+        self.metrics_order[0,0]      = swarm_metrics.order(Agents.state[3:6,:])
+        self.metrics_order[0,1:7]    = swarm_metrics.separation(Agents.state[0:3,:],Targets.targets[0:3,:],Obstacles.obstacles)
+        self.metrics_order[0,7:9]    = swarm_metrics.energy(Agents.cmd)
+        self.metrics_order[0,9:12]   = swarm_metrics.spacing(Agents.state[0:3,:])
+        self.metrics_order_all[i,:]  = self.metrics_order
+        self.swarm_prox              = tools.sigma_norm(Agents.centroid.ravel()-Targets.targets[0:3,0])
         

@@ -26,7 +26,7 @@ from utils import pinning_tools
 
 #%% hyperparameters
 # -----------------
-nShepherds = 12  # number of shepherds (just herding = 0)
+nShepherds = 5  # number of shepherds (just herding = 0)
 
 # for herding
 r_R = 2         # repulsion radius
@@ -338,35 +338,35 @@ def compute_cmd(targets, centroid, states_q, states_p, i):
     
     return cmd*0.02, distinguish[i] #note, this is Ts, because output of above is velo, model is double integrator
     
-# store data
-# ----------
-data = {}
-data['type_shepherd'] = type_shepherd
-data['r_R']         = r_R
-data['r_O']         = r_O
-data['r_A']         = r_A
-data['r_I']         = r_I
-data['a_R']         = a_R
-data['a_O']         = a_O  
-data['a_A']         = a_A
-data['a_I']         = a_I
-data['a_V']         = a_V
-data['r_S']         = r_S   
-data['a_N']         = a_N    
-data['a_R_s']       = a_R_s 
-data['a_R_s_v']     = a_R_s_v
-data['a_V_s']       = a_V_s  
-data['r_Oi']        = r_Oi 
-data['r_Od']        = r_Od 
-data['r_Or']        = r_Or   
+# # store data
+# # ----------
+# data = {}
+# data['type_shepherd'] = type_shepherd
+# data['r_R']         = r_R
+# data['r_O']         = r_O
+# data['r_A']         = r_A
+# data['r_I']         = r_I
+# data['a_R']         = a_R
+# data['a_O']         = a_O  
+# data['a_A']         = a_A
+# data['a_I']         = a_I
+# data['a_V']         = a_V
+# data['r_S']         = r_S   
+# data['a_N']         = a_N    
+# data['a_R_s']       = a_R_s 
+# data['a_R_s_v']     = a_R_s_v
+# data['a_V_s']       = a_V_s  
+# data['r_Oi']        = r_Oi 
+# data['r_Od']        = r_Od 
+# data['r_Or']        = r_Or   
 
-current_datetime = datetime.now()
-formatted_date = current_datetime.strftime("%Y%m%d_%H%M%S")
-#current_directory = os.getcwd()
-#parent_directory = os.path.dirname(current_directory)
-#data_directory = os.path.join(parent_directory, 'Data')
-data_directory = 'Data'
-file_path = os.path.join(data_directory, f"data_params_shepherding_{formatted_date}.json")
+# current_datetime = datetime.now()
+# formatted_date = current_datetime.strftime("%Y%m%d_%H%M%S")
+# #current_directory = os.getcwd()
+# #parent_directory = os.path.dirname(current_directory)
+# #data_directory = os.path.join(parent_directory, 'Data')
+# data_directory = 'Data'
+# file_path = os.path.join(data_directory, f"data_params_shepherding_{formatted_date}.json")
     
-with open(file_path, 'w') as file:
-    json.dump(data, file)
+# with open(file_path, 'w') as file:
+#     json.dump(data, file)
