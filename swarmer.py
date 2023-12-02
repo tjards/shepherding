@@ -9,6 +9,7 @@ Created on Wed Nov 29 19:07:07 2023
 # import stuff
 # ------------
 import numpy as np
+import copy
 from utils import tools, swarm_metrics # do I really need this module?
 
 
@@ -93,7 +94,8 @@ class Targets:
         self.targets[4,:] = 0
         self.targets[5,:] = 0
         
-        self.trajectory = self.targets.copy()
+        #self.trajectory = self.targets.copy()
+        self.trajectory = copy.deepcopy(self.targets)
         
     def evolve(self, t):
         
@@ -160,7 +162,8 @@ class Obstacles:
         self.walls[:,0] = newWall0[:,0]
         self.walls_plots[:,0] = newWall_plots0[:,0]
         
-        self.obstacles_plus = self.obstacles.copy()
+        #self.obstacles_plus = self.obstacles.copy()
+        self.obstacles_plus = copy.deepcopy(self.obstacles)
               
     def evolve(self, targets, state, rVeh):
         
@@ -172,7 +175,8 @@ class Obstacles:
          # Add other vehicles as obstacles (optional, default = 0)
          # -------------------------------------------------------  
         if self.vehObs == 0: 
-            self.obstacles_plus = self.obstacles.copy()
+            #self.obstacles_plus = self.obstacles.copy()
+            self.obstacles_plus = copy.deepcopy(self.obstacles)
         elif self.vehObs == 1:
             states_plus = np.vstack((state[0:3,:], rVeh*np.ones((1,state.shape[1])))) 
             self.obstacles_plus = np.hstack((self.obstacles, states_plus))   
@@ -235,7 +239,7 @@ class History:
         self.metrics_order[0,0]      = swarm_metrics.order(Agents.state[3:6,:])
         self.metrics_order[0,1:7]    = swarm_metrics.separation(Agents.state[0:3,:],Targets.targets[0:3,:],Obstacles.obstacles)
         self.metrics_order[0,7:9]    = swarm_metrics.energy(Agents.cmd)
-        self.metrics_order[0,9:12]   = swarm_metrics.spacing(Agents.state[0:3,:])
+        #self.metrics_order[0,9:12]   = swarm_metrics.spacing(Agents.state[0:3,:])
         self.metrics_order_all[i,:]  = self.metrics_order
         self.swarm_prox              = tools.sigma_norm(Agents.centroid.ravel()-Targets.targets[0:3,0])
         

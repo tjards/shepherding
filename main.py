@@ -72,7 +72,7 @@ f  = 0       # parameter for future use
 
 #%% Create Agents, Targets, and Obstacles (ATO)
 # ---------------------------------------------
-Agents = swarmer.Agents('shep', 7)
+Agents = swarmer.Agents('saber', 7)
 Targets = swarmer.Targets(0, Agents.nVeh)
 Obstacles = swarmer.Obstacles(Agents.tactic_type, 0, Targets.targets)
 History = swarmer.History(Agents, Targets, Obstacles, Ts, Tf, Ti, f)

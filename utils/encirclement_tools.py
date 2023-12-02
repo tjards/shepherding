@@ -18,7 +18,7 @@ from utils import quaternions as quat
 
 # gains
 c1_d        = 2             # position (q)
-c2_d        = 4*np.sqrt(2)  # velocity (p)
+c2_d        = 2*np.sqrt(2)  # velocity (p)
 
 # parameters of the circle 
 r_max       = 50            # max distance to view neighbors (nominally, set high)
