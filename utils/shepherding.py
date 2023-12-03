@@ -300,7 +300,7 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
         targets_shep[0:3,:] = q_s.reshape(3,1)
         
         # inefficient: this should be passed in      
-        pin_matrix_shep = pinning_tools.select_pins_components(shep_q) 
+        pin_matrix_shep, components = pinning_tools.select_pins_components(shep_q) 
         
         cmd = pinning_tools.compute_cmd(centroid, shep_q, shep_p, np.zeros((4,1)), walls_temp, targets_shep, 0*targets_shep, i, pin_matrix_shep)     
             
@@ -332,7 +332,7 @@ def compute_cmd(targets, centroid, states_q, states_p, i):
     
     # messy, but I want to show the shepherding pins as a different color, so    
     if type_shepherd == 'pin_net':
-        pin_matrix = pinning_tools.select_pins_components(states_q)
+        pin_matrix, _ = pinning_tools.select_pins_components(states_q)
         if pin_matrix[i,i] == 1 and distinguish[i] == 1:
             distinguish[i] = 2
     

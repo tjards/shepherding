@@ -26,15 +26,12 @@ Created on Tue Dec 22 11:48:18 2020
 # official packages 
 #from scipy.integrate import ode
 import numpy as np
-import pickle 
 import matplotlib.pyplot as plt
 #plt.style.use('dark_background')
 #plt.style.use('classic')
 plt.style.use('default')
 #plt.style.available
 #plt.style.use('Solarize_Light2')
-import copy
-import random
 import json
 from datetime import datetime
 import os
@@ -42,14 +39,13 @@ import os
 
 # from root folder
 #import animation 
-import swarmer
+import swarm
 import animation
-import dynamics_node as node
 import ctrl_tactic as tactic 
 
 # utilities 
 from utils import encirclement_tools as encircle_tools
-from utils import pinning_tools, lemni_tools, starling_tools, swarm_metrics, tools, modeller
+from utils import lemni_tools, starling_tools
 #from utils import graph_tools
 
 #%% initialize data
@@ -63,7 +59,7 @@ with open(file_path, 'w') as file:
 
 #%% Setup Simulation
 # ------------------
-#np.random.seed(2)
+np.random.seed(0)
 Ti = 0       # initial time
 Tf = 60      # final time (later, add a condition to break out when desirable conditions are met)
 Ts = 0.02    # sample time
@@ -72,10 +68,12 @@ f  = 0       # parameter for future use
 
 #%% Create Agents, Targets, and Obstacles (ATO)
 # ---------------------------------------------
-Agents = swarmer.Agents('saber', 7)
-Targets = swarmer.Targets(0, Agents.nVeh)
-Obstacles = swarmer.Obstacles(Agents.tactic_type, 0, Targets.targets)
-History = swarmer.History(Agents, Targets, Obstacles, Ts, Tf, Ti, f)
+Agents = swarm.Agents('shep', 7)
+Controller = tactic.Controller(Agents)
+Targets = swarm.Targets(0, Agents.nVeh)
+Trajectory = swarm.Trajectory(Targets)
+Obstacles = swarm.Obstacles(Agents.tactic_type, 0, Targets.targets)
+History = swarm.History(Agents, Targets, Obstacles, Controller, Ts, Tf, Ti, f)
 
 #%% Run Simulation
 # ----------------------
@@ -94,50 +92,31 @@ while round(t,3) < Tf:
 
     # Evolve the states
     # -----------------
-    Agents.evolve(Ts)
+    Agents.evolve(Controller,Ts)
      
     # Store results 
     # -------------
-    History.update(Agents, Targets, Obstacles, t, f, i)
+    History.update(Agents, Targets, Obstacles, Controller, t, f, i)
     
     # Increment 
     # ---------
     t += Ts
     i += 1
-        
+    
     #%% Compute Trajectory
-    # --------------------   
-    
-    # [LEGACY] create a temp exlusionary set
-    #state_ = np.delete(state, [exclusion], axis = 1)
-    #targets_ = np.delete(targets, [exclusion], axis = 1)
-    #lemni_all_ = np.delete(lemni_all, [exclusion], axis = 1)
-        
-    #if flocking
-    if Agents.tactic_type == 'reynolds' or Agents.tactic_type == 'saber' or Agents.tactic_type == 'starling' or Agents.tactic_type == 'pinning' or Agents.tactic_type == 'shep':
-        Targets.trajectory = Targets.targets.copy() 
-    
-    # if encircling
-    if Agents.tactic_type == 'circle':
-        Targets.trajectory, _ = encircle_tools.encircle_target(Targets.targets, Agents.state)
-    
-    # if lemniscating
-    elif Agents.tactic_type == 'lemni':
-        Targets.trajectory, Agents.lemni = lemni_tools.lemni_target(History.lemni_all,Agents.state,Targets.targets,i,t)
-
-    # [LEGACY] add exluded back in
-    # for ii in exclusion:
-    #     trajectory = np.insert(trajectory,ii,targets[:,ii],axis = 1)
-    #     trajectory[0:2,ii] = ii + 5 # just move away from the swarm
-    #     trajectory[2,ii] = 15 + ii 
-    #     lemni = np.insert(lemni,ii,lemni_all[i-1,ii],axis = 1)
-    #     # label excluded as pins (for plotting colors only)
-    #     pins_all[i-1,ii,ii] = 1       
-                       
+    # --------------------
+    Trajectory.update(Agents, Targets, t, i)
+                        
     #%% Compute the commads (next step)
     # -------------------------------- 
-    Agents.cmd, Agents.params, Agents.pin_matrix = tactic.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Targets.trajectory[0:3,:], Targets.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)
-       
+    #Agents.cmd, Agents.params, Agents.pin_matrix = tactic.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Targets.trajectory[0:3,:], Targets.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)
+    #Agents.cmd, Agents.params, Agents.pin_matrix = tactic.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Trajectory.trajectory[0:3,:], Trajectory.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)   
+    #Agents.cmd, Agents.params, Agents.pin_matrix = tactic.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Trajectory.trajectory[0:3,:], Trajectory.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)   
+    #Agents.cmd, Agents.params, Agents.pin_matrix = Controller.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Trajectory.trajectory[0:3,:], Trajectory.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)   
+    Controller.commands(Agents, Obstacles, Targets, Trajectory, History) 
+    
+    
+    
 #%% Produce animation of simulation
 # ---------------------------------       
 ani = animation.animateMe(Ts, History, Obstacles, Agents.tactic_type)
