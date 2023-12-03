@@ -26,42 +26,44 @@ from utils import pinning_tools
 
 #%% hyperparameters
 # -----------------
-nShepherds = 5  # number of shepherds (just herding = 0)
+nShepherds = 7  # number of shepherds (just herding = 0)
 
 # for herding
 r_R = 2         # repulsion radius
-r_O = 4         # orientation radius
-r_A = 7         # attraction radius (a_R < a_O < a_A)
-r_I = 5.5       # agent interaction radius (nominally, slighly < a_A)
+r_O = 3         # orientation radius
+r_A = 4         # attraction radius (r_R < r_O < r_A)
+r_I = 5.5       # agent interaction radius (nominally, slighly < r_A)
 
-a_R = 0.5       # gain,repulsion 
+a_R = 2       # gain,repulsion 
 a_O = 1         # gain orientation 
-a_A = 0.8       # gain, attraction 
-a_I = 1.2        # gain, agent interaction 
-a_V = 0.5      # gain, laziness (desire to stop)
+a_A = 2       # gain, attraction 
+a_I = 4        # gain, agent interaction 
+a_V = 1      # gain, laziness (desire to stop)
 
 # for shepherding (break these out by technique)
 r_S     = r_I - 1           # desired radius from herd
+
+# (haver type)
 a_N     = 5                 # gain, navigation
 a_R_s   = 1                 # gain, shepards repel eachother
 a_R_s_v = 1*np.sqrt(a_R_s)
 a_V_s   = 1*np.sqrt(a_N)    # gain, laziness (desire to stop)
-
 r_Oi    = 2                 # range to view obstacles (here, nearest shepherd)
 r_Od    = 1                 # desired distance from obtacles 
 r_Or    = 0.5               # radius of shepherd (uniform for all agents, for now)
 
 # techniques 
-type_shepherd = 'pin_net'
+type_shepherd = 'haver'
     #   'haver         = traditional approach to shepherding
-    #   'pin_net'      = builds a network with lattice and pins 
+    #   'pin_net'      = builds a network with lattice and pins (inefficient and doesn't work well)
 
 type_avoid = 'ref_point'
     #   'ref_shepherd' = maintains rO_d from nearest shepherd
     #   'ref_point'    = maintains rO_d from desired location between herd and inv-target 
 
-
-
+# bias unique to each
+k_noise = 0.1
+noise   = np.random.uniform(-1, 1, (nShepherds,3))
 
 # build an index distinguishing shepards from herd (1 = s, 0 = h)
 # --------------------------------------------------------------
@@ -257,6 +259,7 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
         
         closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
         q_cs = states_q[:,closest_shepherd]         # closest shepherd
+        p_cs = states_p[:,closest_shepherd] 
         d_cs = np.linalg.norm(q_cs-states_q[:,i])   # distance from that closest shepherd
         
         # maintain a desired separation from closest shepard (if within range)
@@ -297,14 +300,17 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
             
         walls_temp = np.array([[-0.5 ],[ 0.25],[50.  ],[ 0.  ],[ 0.  ],[-2.  ]])
         targets_shep = np.zeros((3,shep_q.shape[1]))
+        targets_shep_v = np.zeros((3,shep_p.shape[1]))
         targets_shep[0:3,:] = q_s.reshape(3,1)
+        #targets_shep_v[0:3,:] = pc_s.reshape(3,1)
         
         # inefficient: this should be passed in      
         pin_matrix_shep, components = pinning_tools.select_pins_components(shep_q) 
         
-        cmd = pinning_tools.compute_cmd(centroid, shep_q, shep_p, np.zeros((4,1)), walls_temp, targets_shep, 0*targets_shep, i, pin_matrix_shep)     
+        # clean this up
+        cmd = pinning_tools.compute_cmd(centroid, shep_q, shep_p, np.zeros((4,1)), walls_temp, targets_shep, targets_shep_v, i, pin_matrix_shep)     
             
-    return cmd
+    return cmd + noise[i,:]
     
 def compute_cmd(targets, centroid, states_q, states_p, i):
     

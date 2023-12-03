@@ -59,16 +59,16 @@ with open(file_path, 'w') as file:
 
 #%% Setup Simulation
 # ------------------
-np.random.seed(0)
+#np.random.seed(0)
 Ti = 0       # initial time
-Tf = 60      # final time (later, add a condition to break out when desirable conditions are met)
+Tf = 30      # final time (later, add a condition to break out when desirable conditions are met)
 Ts = 0.02    # sample time
 f  = 0       # parameter for future use
 #exclusion = []     # [LEGACY] initialization of what agents to exclude, default empty
 
 #%% Create Agents, Targets, and Obstacles (ATO)
 # ---------------------------------------------
-Agents = swarm.Agents('shep', 7)
+Agents = swarm.Agents('shep', 21)
 Controller = tactic.Controller(Agents)
 Targets = swarm.Targets(0, Agents.nVeh)
 Trajectory = swarm.Trajectory(Targets)
@@ -124,7 +124,7 @@ ani = animation.animateMe(Ts, History, Obstacles, Agents.tactic_type)
 #%% Produce plots
 # --------------
 
-# separtion 
+#%% separtion 
 fig, ax = plt.subplots()
 ax.plot(History.t_all[4::],History.metrics_order_all[4::,1],'-b')
 ax.plot(History.t_all[4::],History.metrics_order_all[4::,5],':b')
@@ -138,7 +138,7 @@ ax.set(xlabel='Time [s]', ylabel='Mean Distance (with Min/Max Bounds) [m]',
 ax.grid()
 plt.show()
 
-# radii from target
+#%% radii from target
 radii = np.zeros([History.states_all.shape[2],History.states_all.shape[0]])
 for i in range(0,History.states_all.shape[0]):
     for j in range(0,History.states_all.shape[2]):

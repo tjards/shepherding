@@ -40,9 +40,9 @@ class Controller:
         # Commands
         # --------
         self.cmd = np.zeros((3,Agents.nVeh))
-        self.cmd[0] = 0*np.random.rand(1,Agents.nVeh)-0.5      # command (x)
-        self.cmd[1] = 0*np.random.rand(1,Agents.nVeh)-0.5      # command (y)
-        self.cmd[2] = 0*np.random.rand(1,Agents.nVeh)-0.5      # command (z)
+        self.cmd[0] = 0.001*np.random.rand(1,Agents.nVeh)-0.5      # command (x)
+        self.cmd[1] = 0.001*np.random.rand(1,Agents.nVeh)-0.5      # command (y)
+        self.cmd[2] = 0.001*np.random.rand(1,Agents.nVeh)-0.5      # command (z)
 
         # Other Parameters
         # ----------------
@@ -77,12 +77,12 @@ class Controller:
             #pin_matrix = pinning_tools.select_pins(states_q) 
             #pin_matrix = pinning_tools.select_pins_components(states_q, 'gramian') 
             
-            #self.counter += 1
+            self.counter += 1
             
-            # only update the pins at Ts/100
-            #if self.counter == 10:
-            #self.counter = 0
-            self.pin_matrix, self.components = pinning_tools.select_pins_components(Agents.state[0:3,:])
+            # only update the pins at Ts/10
+            if self.counter == 10:
+                self.counter = 0
+                self.pin_matrix, self.components = pinning_tools.select_pins_components(Agents.state[0:3,:])
                 #print(components)
                 #if components != self.components:
                     #self.components = copy.deepcopy(components)

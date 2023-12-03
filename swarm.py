@@ -39,9 +39,9 @@ class Agents:
         self.state[0,:] = iSpread*(np.random.rand(1,self.nVeh)-0.5)                   # position (x)
         self.state[1,:] = iSpread*(np.random.rand(1,self.nVeh)-0.5)                   # position (y)
         self.state[2,:] = np.maximum((iSpread*np.random.rand(1,self.nVeh)-0.5),2)+15  # position (z)
-        self.state[3,:] = 0                                                      # velocity (vx)
-        self.state[4,:] = 0                                                      # velocity (vy)
-        self.state[5,:] = 0                                                      # velocity (vz)
+        self.state[3,:] = 0*np.random.rand(1,self.nVeh)                                                       # velocity (vx)
+        self.state[4,:] = 0*np.random.rand(1,self.nVeh)                                                       # velocity (vy)
+        self.state[5,:] = 0*np.random.rand(1,self.nVeh)                                                      # velocity (vz)
         self.centroid = self.compute_centroid(self.state[0:3,:].transpose())
         self.centroid_v = self.compute_centroid(self.state[3:6,:].transpose())
         
