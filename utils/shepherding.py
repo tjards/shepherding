@@ -90,6 +90,8 @@ class HerdAndShepherds:
         self.state_i    = state
         #self.states_q = state[0:3,:]
         #self.states_p = state[3:6,:]
+        self.state_shep_i = np.zeros((self.state_i.shape[0],self.nShepherds))
+        self.state_herd_i = np.zeros((self.state_i.shape[0],self.state_i.shape[1]-self.nShepherds))
         
         # discern shepherds from herd
         # ---------------------------
@@ -107,15 +109,24 @@ class HerdAndShepherds:
         #self.seps_all = compute_seps(states_q)
         self.compute_seps()
         
+        # agent currently being explored
+        self.i = 0
+        # neighbour currently being explored
+        self.j = 0
+        # cmd adjustment (based on sample time, later, import this)
+        self.cmd_adjust = 0.02
+        self.cmd = np.zeros((3,1))
+        
+        
     # separate the shepherds from the herd (not used)
     # -----------------------------------
     def distinguish(self):
         
         # initiate
         # --------
-        self.state_shep_i = np.zeros((self.state_i.shape[0],self.nShepherds))
+        #self.state_shep_i = np.zeros((self.state_i.shape[0],self.nShepherds))
         i_s = 0
-        self.state_herd_i = np.zeros((self.state_i.shape[0],self.state_i.shape[1]-self.nShepherds))
+        #self.state_herd_i = np.zeros((self.state_i.shape[0],self.state_i.shape[1]-self.nShepherds))
         i_h = 0
         
         # distinguish between shepherds and herd
@@ -170,13 +181,37 @@ class HerdAndShepherds:
         #np.random.shuffle(index)
         
         #return list(index)
-      
+    
+    # compute commands (called from outside)
+    # ----------------
+    def compute_cmd(self, i):
+        
+        # store the agent being examined
+        self.i = i
+        
+        # compute the separations
+        self.compute_seps()
+        
+        # compute command iaw its membership
+        if self.index[self.i] == 0:
+            
+            # compute the command
+            self.herd.compute_cmd(self)
+        
+        elif self.index[self.i] == 1:
+            
+            # compute the command
+            self.shepherds.compute_cmd(self)
+            
+            
+    
+    
     # define the herd
     # ---------------        
     #class Herd(HerdAndShepherds):
     class Herd():
     
-        def __init__(self, HerdAndShepherds):
+        def __init__(self, outer):
             
             # radial parameters
             self.r_R = r_R         # repulsion radius
@@ -191,17 +226,71 @@ class HerdAndShepherds:
             self.a_I = a_I         # gain, agent interaction 
             self.a_V = a_V         # gain, laziness (desire to stop)
             
-            self.state = HerdAndShepherds.state_herd_i
+            self.state = outer.state_herd_i
      
             # initialization of the superclass (if needed)
             #HerdAndShepherds.__init__(self, HerdAndShepherds.states_q, HerdAndShepherds.nShepherds)
     
+        # compute herd commands 
+        def compute_cmd(self, outer):
+            
+            print('herd cmd')
+            
+            # # initialize
+            # # -----------
+            # #seps_all = compute_seps(states_q)
+            # motion_vector = np.zeros((3,states_q.shape[1]))
+            
+            # # search through each agent
+            # j = 0
+            # while (j < states_q.shape[1]):
+                
+            #     # but not itself
+            #     if i != j:
+                    
+            #         # pull distance
+            #         dist = seps_all[i,j]
+            #         #print(dist)
+                    
+            #         # I could nest these, given certain radial constraints
+            #         # ... but I won't, deliberately, for now (enforce above, then come back later)
+            #         #print(i)
+                    
+            #         # urge to stop moving
+            #         motion_vector[:,i] += a_V * (-states_p[:,i])
+                      
+            #         # repulsion
+            #         if dist < r_R and distinguish[j] == 0:
+            #             motion_vector[:,i] -= a_R * np.divide(states_q[:,j]-states_q[:,i],dist)
+                           
+            #         # orientation
+            #         if dist < r_O and distinguish[j] == 0:
+            #             motion_vector[:,i] += a_O * np.divide(states_p[:,j]-states_p[:,i],np.linalg.norm(states_p[:,j]-states_p[:,i]))
+                    
+            #         # attraction
+            #         if dist < r_A and distinguish[j] == 0:
+            #             motion_vector[:,i] += a_A * np.divide(states_q[:,j]-states_q[:,i],dist)
+                        
+            #         # shepherd influence
+            #         if dist < r_I and distinguish[j] == 1:
+            #             motion_vector[:,i] -= a_I * np.divide(states_q[:,j]-states_q[:,i],dist)
+                        
+            #     j+=1
+            
+            # return motion_vector[:,i] 
+
+           
+           
+           
+           
+           
+           
 
     # define the shepherds
     # --------------------
     class Shepherds():
         
-        def __init__(self, HerdAndShepherds):
+        def __init__(self, outer):
             
             # radial parameters
             self.r_S     = r_S      # desired radius from herd
@@ -215,8 +304,13 @@ class HerdAndShepherds:
             self.a_R_s_v = a_R_s_v  # gain, shepherds repel eachther (velo component)
             self.a_V_s   = a_V_s    # gain, laziness (desire to stop)
 
-            self.state = HerdAndShepherds.state_shep_i
+            self.state = outer.state_shep_i
 
+        # compute herd commands 
+        def compute_cmd(self, outer):
+                
+            outer.cmd = np.ones((3,1))
+            print('shep cmd')
 
 
 # build an index distinguishing shepards from herd (1 = s, 0 = h)
@@ -472,7 +566,10 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
                 cmd += a_R_s*phi_b(states_q[:,i], q_ik, sigma_norm(r_Od))*n_ij(states_q[:,i], q_ik) + a_R_s_v*b_ik(states_q[:,i], q_ik, sigma_norm(r_Od))*(p_ik - states_p[:,i])
   
     return cmd + noise[i,:]
-    
+  
+
+# old one
+# -------  
 def compute_cmd(targets, centroid, states_q, states_p, i):
     
     # compute distances between all
@@ -499,6 +596,10 @@ def compute_cmd(targets, centroid, states_q, states_p, i):
     
     return cmd*0.02, distinguish[i] #note, this is Ts, because output of above is velo, model is double integrator
     
+
+    
+    
+
 
 
 
