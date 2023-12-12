@@ -44,9 +44,7 @@ import animation
 import ctrl_tactic as tactic 
 
 # utilities 
-from utils import encirclement_tools as encircle_tools
-from utils import lemni_tools, starling_tools
-#from utils import graph_tools
+
 
 #%% initialize data
 data = {}
@@ -68,7 +66,7 @@ f  = 0       # parameter for future use
 
 #%% Create Agents, Targets, and Obstacles (ATO)
 # ---------------------------------------------
-Agents = swarm.Agents('shep', 21)
+Agents = swarm.Agents('shep', 7)
 Controller = tactic.Controller(Agents)
 Targets = swarm.Targets(0, Agents.nVeh)
 Trajectory = swarm.Trajectory(Targets)
