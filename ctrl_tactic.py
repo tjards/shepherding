@@ -53,6 +53,10 @@ class Controller:
         self.pin_matrix = np.zeros((Agents.nVeh,Agents.nVeh))
         self.components = []
         
+        if Agents.tactic_type == 'shep':
+            
+            self.shepherdClass = shep.Shepherding(Agents.state)
+        
         if Agents.tactic_type == 'pinning':
             from utils import pinning_tools
             self.pin_matrix, self.components = pinning_tools.select_pins_components(Agents.state[0:3,:])
@@ -166,6 +170,16 @@ class Controller:
                 # ------------------------------------------------
                 cmd_i[:,k_node], self.pin_matrix[k_node, k_node] = shep.compute_cmd( Targets.targets[0:3,:], Agents.centroid, Agents.state[0:3,:], Agents.state[3:6,:], k_node)
                 
+                
+                # overide with the class version
+                # --------------------
+                self.shepherdClass.compute_cmd(Targets, k_node)
+                cmd_i[:,k_node] = self.shepherdClass.cmd
+                
+                
+                
+                #print('Error(',k_node,'): ', cmd_i[:,k_node] - self.shepherdClass.cmd)
+                #print('Pin benchmark: ', self.pin_matrix[k_node, k_node], 'output: ', self.shepherdClass.index[self.shepherdClass.i])
  
             # Mixer
             # -----         

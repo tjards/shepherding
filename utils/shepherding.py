@@ -11,8 +11,7 @@ Refs:
 
 Dev notes:
     
-    next, we need to define the cmd_s
-    - by herd and by shepherd separately? how to store? Probably as whole
+ successfully editing cmds. Herd cmds seens done. Work on cmds shepherds.
 
 
 """
@@ -30,7 +29,7 @@ import copy
 
 #%% hyperparameters
 # -----------------
-nShepherds = 5  # number of shepherds (just herding = 0)
+nShepherds = 3  # number of shepherds (just herding = 0)
 
 # for herding
 r_R = 2         # repulsion radius
@@ -42,7 +41,7 @@ a_R = 2         # gain,repulsion
 a_O = 1         # gain orientation 
 a_A = 1         # gain, attraction 
 a_I = 4         # gain, agent interaction 
-a_V = 2         # gain, laziness (desire to stop)
+a_V = 4         # gain, laziness (desire to stop)
 
 # for shepherding 
 r_S     = r_I - 1           # desired radius from herd
@@ -74,11 +73,12 @@ k_noise = 0.1
 noise   = np.random.uniform(-1, 1, (nShepherds,3))
 
 
+
 # define overall class
 # -----------------
-class HerdAndShepherds:
+class Shepherding:
     
-    def __init__(self, state, nShepherds):
+    def __init__(self, state):
         
         # how many are shepherds
         # ----------------------
@@ -87,22 +87,26 @@ class HerdAndShepherds:
         
         # states of all
         # -------------
-        self.state_i    = state
+        self.state    = state
         #self.states_q = state[0:3,:]
         #self.states_p = state[3:6,:]
-        self.state_shep_i = np.zeros((self.state_i.shape[0],self.nShepherds))
-        self.state_herd_i = np.zeros((self.state_i.shape[0],self.state_i.shape[1]-self.nShepherds))
+        #self.state_shep_i = np.zeros((self.state.shape[0],self.nShepherds))
+        #self.state_herd_i = np.zeros((self.state.shape[0],self.state.shape[1]-self.nShepherds))
         
         # discern shepherds from herd
         # ---------------------------
         #self.distinguish = build_index(nShepherds, states_q)
         self.build_index()
-        self.distinguish()
+        #self.distinguish()
         
         # instantiate the herd and shepherds
         # ----------------------------------
         self.herd       = self.Herd(self)
         self.shepherds  = self.Shepherds(self) 
+        
+        # store the targets
+        # -----------------
+        #self.targets = Targets.targets[0:3,:]
         
         # compute distances between all
         # -----------------------------
@@ -115,45 +119,51 @@ class HerdAndShepherds:
         self.j = 0
         # cmd adjustment (based on sample time, later, import this)
         self.cmd_adjust = 0.02
-        self.cmd = np.zeros((3,1))
+        self.cmd = np.zeros((1,3))
+        
+        # store hyper params
+        # ------------------
+        self.type_shepherd = type_shepherd
+        self.type_avoid = type_avoid 
         
         
-    # separate the shepherds from the herd (not used)
-    # -----------------------------------
-    def distinguish(self):
+    # # separate the shepherds from the herd (not used)
+    # # -----------------------------------
+    # def distinguish(self):
         
-        # initiate
-        # --------
-        #self.state_shep_i = np.zeros((self.state_i.shape[0],self.nShepherds))
-        i_s = 0
-        #self.state_herd_i = np.zeros((self.state_i.shape[0],self.state_i.shape[1]-self.nShepherds))
-        i_h = 0
+    #     # initiate
+    #     # --------
+    #     #self.state_shep_i = np.zeros((self.state_i.shape[0],self.nShepherds))
+    #     i_s = 0
+    #     #self.state_herd_i = np.zeros((self.state_i.shape[0],self.state_i.shape[1]-self.nShepherds))
+    #     i_h = 0
         
-        # distinguish between shepherds and herd
-        # -------------------------------------
-        for i in range(0,self.state_i.shape[1]):
+    #     # distinguish between shepherds and herd
+    #     # -------------------------------------
+    #     for i in range(0,self.state.shape[1]):
             
-            # shepherds
-            if self.index[i] == 1:
-                self.state_shep_i[:,i_s] = self.state_i[:,i]
-                i_s += 1
-            # herd
-            else:
-                self.state_herd_i[:,i_h] = self.state_i[:,i]
-                i_h += 1      
+    #         # shepherds
+    #         if self.index[i] == 1:
+    #             self.state_shep_i[:,i_s] = self.state[:,i]
+    #             i_s += 1
+    #         # herd
+    #         else:
+    #             self.state_herd_i[:,i_h] = self.state[:,i]
+    #             i_h += 1      
     
     
     # define separation
     # ------------------ 
     def compute_seps(self):
         
-        states_q = np.concatenate((self.herd.state, self.shepherds.state), axis = 1)
+        #states_q = np.concatenate((self.herd.state, self.shepherds.state), axis = 1)
+        #states_q = self.state
         
-        self.seps_all = np.zeros((states_q.shape[1],states_q.shape[1]))
+        self.seps_all = np.zeros((self.state.shape[1],self.state.shape[1]))
         i = 0
-        while (i<states_q.shape[1]):
+        while (i<self.state.shape[1]):
             #seps_all[i:state.shape[1],i]=cdist(state[0:3,i].reshape(1,3), state[0:3,i:state.shape[1]].transpose())
-            self.seps_all[i:states_q.shape[1],i]=cdist(states_q[0:3,i].reshape(1,3), states_q[0:3,i:states_q.shape[1]].transpose())
+            self.seps_all[i:self.state.shape[1],i]=cdist(self.state[0:3,i].reshape(1,3), self.state[0:3,i:self.state.shape[1]].transpose())
           
             i+=1
         
@@ -167,7 +177,7 @@ class HerdAndShepherds:
 
         # check to ensure herd is big enough
         # ---------------------------------
-        if self.nShepherds > (self.state_i.shape[1]-1):
+        if self.nShepherds > (self.state.shape[1]-1):
             raise ValueError("there needs to be at least one member in the herd ")
             
         # compute size of herd
@@ -180,14 +190,18 @@ class HerdAndShepherds:
         # Shuffle to distribute 1's and 0's randomly
         #np.random.shuffle(index)
         
+        
         #return list(index)
     
     # compute commands (called from outside)
     # ----------------
-    def compute_cmd(self, i):
+    def compute_cmd(self, Targets, i):
         
         # store the agent being examined
         self.i = i
+        
+        # store the targets
+        self.targets = Targets.targets[0:3,:]
         
         # compute the separations
         self.compute_seps()
@@ -202,6 +216,8 @@ class HerdAndShepherds:
             
             # compute the command
             self.shepherds.compute_cmd(self)
+        
+        self.cmd = 0.02*self.cmd
             
             
     
@@ -226,65 +242,59 @@ class HerdAndShepherds:
             self.a_I = a_I         # gain, agent interaction 
             self.a_V = a_V         # gain, laziness (desire to stop)
             
-            self.state = outer.state_herd_i
+            #self.state = outer.state_herd_i
      
             # initialization of the superclass (if needed)
             #HerdAndShepherds.__init__(self, HerdAndShepherds.states_q, HerdAndShepherds.nShepherds)
     
+            self.indices = [k for k, m in enumerate(outer.index) if m == 0]
+    
         # compute herd commands 
         def compute_cmd(self, outer):
             
-            print('herd cmd')
+            # initialize
+            # -----------
+            #seps_all = compute_seps(states_q)
+            #motion_vector = np.zeros((3,states_q.shape[1]))
+            outer.cmd = np.zeros((1,3))
             
-            # # initialize
-            # # -----------
-            # #seps_all = compute_seps(states_q)
-            # motion_vector = np.zeros((3,states_q.shape[1]))
+            # search through each member of the herd
+            outer.j = 0
             
-            # # search through each agent
-            # j = 0
-            # while (j < states_q.shape[1]):
+            # search through the all agents
+            while (outer.j < (outer.nHerd + outer.nShepherds)):
                 
-            #     # but not itself
-            #     if i != j:
+                # if not itself
+                if outer.seps_all[outer.i,outer.j] > 0.000001:
                     
-            #         # pull distance
-            #         dist = seps_all[i,j]
-            #         #print(dist)
+                    # urge to stop moving
+                    outer.cmd += self.a_V * (-outer.state[3:6,outer.i])                   
                     
-            #         # I could nest these, given certain radial constraints
-            #         # ... but I won't, deliberately, for now (enforce above, then come back later)
-            #         #print(i)
+                    # if it's a member of the herd
+                    if outer.index[outer.j] == 0:
                     
-            #         # urge to stop moving
-            #         motion_vector[:,i] += a_V * (-states_p[:,i])
-                      
-            #         # repulsion
-            #         if dist < r_R and distinguish[j] == 0:
-            #             motion_vector[:,i] -= a_R * np.divide(states_q[:,j]-states_q[:,i],dist)
-                           
-            #         # orientation
-            #         if dist < r_O and distinguish[j] == 0:
-            #             motion_vector[:,i] += a_O * np.divide(states_p[:,j]-states_p[:,i],np.linalg.norm(states_p[:,j]-states_p[:,i]))
-                    
-            #         # attraction
-            #         if dist < r_A and distinguish[j] == 0:
-            #             motion_vector[:,i] += a_A * np.divide(states_q[:,j]-states_q[:,i],dist)
+                        # repulsion
+                        if outer.seps_all[outer.i,outer.j] < self.r_R:
+                            outer.cmd -= self.a_R * np.divide(outer.state[0:3,outer.j]-outer.state[0:3,outer.i],outer.seps_all[outer.i,outer.j])
+                               
+                        # orientation
+                        if outer.seps_all[outer.i,outer.j] < self.r_O:
+                            outer.cmd += self.a_O * np.divide(outer.state[3:6,outer.j]-outer.state[3:6,outer.i],np.linalg.norm(outer.state[3:6,outer.j]-outer.state[3:6,outer.i]))
                         
-            #         # shepherd influence
-            #         if dist < r_I and distinguish[j] == 1:
-            #             motion_vector[:,i] -= a_I * np.divide(states_q[:,j]-states_q[:,i],dist)
-                        
-            #     j+=1
+                        # attraction
+                        if outer.seps_all[outer.i,outer.j] < self.r_A:
+                            outer.cmd += self.a_A * np.divide(outer.state[0:3,outer.j]-outer.state[0:3,outer.i],outer.seps_all[outer.i,outer.j])
+                    
+                    # if it is a shepherd        
+                    elif outer.index[outer.j] == 1:
+                    
+                        # shepherd influence
+                        if outer.seps_all[outer.i,outer.j] < self.r_I:
+                            outer.cmd -= self.a_I * np.divide(outer.state[0:3,outer.j]-outer.state[0:3,outer.i],outer.seps_all[outer.i,outer.j])
+                            
+                outer.j+=1
             
-            # return motion_vector[:,i] 
-
-           
-           
-           
-           
-           
-           
+    
 
     # define the shepherds
     # --------------------
@@ -304,13 +314,96 @@ class HerdAndShepherds:
             self.a_R_s_v = a_R_s_v  # gain, shepherds repel eachther (velo component)
             self.a_V_s   = a_V_s    # gain, laziness (desire to stop)
 
-            self.state = outer.state_shep_i
+            #self.state = outer.state_shep_i
+            
+            self.indices = [k for k, m in enumerate(outer.index) if m == 1]
 
         # compute herd commands 
         def compute_cmd(self, outer):
                 
-            outer.cmd = np.ones((3,1))
-            print('shep cmd')
+            outer.cmd = np.zeros((3,1))
+
+            seps_list       = list(outer.seps_all[outer.i,:])
+            
+            
+            # make all the shepherds negative
+            for k in self.indices:
+                seps_list[k] = -seps_list[k]
+
+            #closest_herd    = seps_list.index(min(k for k in seps_list if k in self.indices.remove(outer.i)))
+            #closest_herd    = seps_list.index(min(k for k in seps_list if k > 0))               
+            
+
+            # find the indices for the shepherds
+            #indices_shep = [k for k, m in enumerate(distinguish) if m == 1]
+            
+            # make them negative
+            #for k in indices_shep:
+            #    seps_list[k] = -seps_list[k]
+             
+            # find the closest herd
+            closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
+    
+
+            
+            
+            # compute the normalized vector between closest in herd and target 
+            #v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
+            
+            v = np.divide(outer.state[0:3,closest_herd]-outer.targets[0:3,outer.i],np.linalg.norm(outer.state[0:3,closest_herd]-outer.targets[0:3,outer.i])) 
+     
+            
+            # compute the desired location to shepard (based on closets hearder)
+            q_s = outer.state[0:3,closest_herd] + self.r_S*v  # location
+            d_s = np.linalg.norm(q_s-outer.state[0:3,outer.i]) # distance
+            
+            
+            # find the closest shepherd
+            closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
+            
+            q_cs = outer.state[0:3,closest_shepherd]         # location of closest shepherd
+            d_cs = np.linalg.norm(q_cs-outer.state[0:3,outer.i])   # distance from that closest shepherd
+            
+            
+            # if using havermaet technique
+            # ----------------------------
+            if outer.type_shepherd == 'haver':
+            
+                # navigate to push the herd towards targets
+                # -----------------------------------------
+                outer.cmd = self.a_N * np.divide(q_s-outer.state[0:3,outer.i],np.linalg.norm(q_s-outer.state[0:3,outer.i]))
+                
+                # urge to slow down
+                # ----------------
+                outer.cmd += self.a_V_s * (-outer.state[3:6,outer.i])
+                
+                # if the closet shepherd is within avoidance range
+                if d_cs < self.r_Oi:
+                    
+                    # avoid the shepherd
+                    if outer.type_avoid == 'ref_shepherd':
+                    
+                        bold_a_k = np.array(np.divide(outer.state[0:3,outer.i]-q_cs,d_cs), ndmin = 2)
+                        P = np.identity(outer.state[3:6,:].shape[0]) - np.multiply(bold_a_k,bold_a_k.transpose())
+                        mu = np.divide(self.r_Or,d_cs) 
+                        p_ik = mu*np.dot(P,outer.state[3:6,outer.i]) 
+                        q_ik = mu*outer.state[0:3,outer.i]+(1-mu)*q_cs
+                                    
+                        outer.cmd += self.a_R_s*phi_b(outer.state[0:3,outer.i], q_ik, sigma_norm(self.r_Od))*n_ij(outer.state[0:3,outer.i], q_ik) + self.a_R_s_v*b_ik(outer.state[0:3,outer.i], q_ik, sigma_norm(self.r_Od))*(p_ik - outer.state[3:6,outer.i])
+                 
+                    # avoid the reference point (ends up working nicely)
+                    elif outer.type_avoid == 'ref_point':
+                        
+                        bold_a_k = np.array(np.divide(outer.state[0:3,outer.i]-q_s,d_s), ndmin = 2)
+                        P = np.identity(outer.state[3:6,:].shape[0]) - np.multiply(bold_a_k,bold_a_k.transpose())
+                        mu = np.divide(self.r_Or,d_s) 
+                        p_ik = mu*np.dot(P,outer.state[3:6,outer.i]) 
+                        q_ik = mu*outer.state[0:3,outer.i]+(1-mu)*q_s
+                                    
+                        outer.cmd += self.a_R_s*phi_b(outer.state[0:3,outer.i], q_ik, sigma_norm(self.r_Od))*n_ij(outer.state[0:3,outer.i], q_ik) + self.a_R_s_v*b_ik(outer.state[0:3,outer.i], q_ik, sigma_norm(self.r_Od))*(p_ik - outer.state[3:6,outer.i])
+          
+                
+                
 
 
 # build an index distinguishing shepards from herd (1 = s, 0 = h)
@@ -494,22 +587,30 @@ def compute_cmd_shep(targets, centroid, states_q, states_p, i, distinguish, seps
     # find the indices for the shepherds
     indices_shep = [k for k, m in enumerate(distinguish) if m == 1]
     
+
+    
     # make them negative
     for k in indices_shep:
         seps_list[k] = -seps_list[k]
      
+        
+     
     # find the closest herd
     closest_herd        = seps_list.index(min(k for k in seps_list if k > 0))
+
+    
     
     # compute the normalized vector between closest in herd and target 
     v = np.divide(states_q[:,closest_herd]-targets[:,i],np.linalg.norm(states_q[:,closest_herd]-targets[:,i])) 
-        
+     
+    
     # compute the desired location to shepard (based on closets hearder)
     q_s = states_q[:,closest_herd] + r_S*v  # location
     d_s = np.linalg.norm(q_s-states_q[:,i]) # distance
     
     # find the closest shepherd
     closest_shepherd    = seps_list.index(max(k for k in seps_list if k < 0))
+    
     q_cs = states_q[:,closest_shepherd]         # location of closest shepherd
     d_cs = np.linalg.norm(q_cs-states_q[:,i])   # distance from that closest shepherd
     
@@ -599,11 +700,37 @@ def compute_cmd(targets, centroid, states_q, states_p, i):
 
     
     
+#%%
+# # test
+
+# nVeh = 7
+
+# class test_target:
+    
+#     def __init__(self):
+        
+#         self.targets = 4*(np.random.rand(6,nVeh)-0.5)
+#         self.targets[0,:] = 0 #5*(np.random.rand(1,nVeh)-0.5)
+#         self.targets[1,:] = 0 #5*(np.random.rand(1,nVeh)-0.5)
+#         self.targets[2,:] = 15
+#         self.targets[3,:] = 0
+#         self.targets[4,:] = 0
+#         self.targets[5,:] = 0
+    
+    
 
 
+# Targets = test_target()
+# new = Shepherding(np.zeros((6,nVeh)),3, Targets)
+# #import random
+# #rows = 6
+# #cols = 7
+# # Create a 6x7 array with random float values
+# #new.state = np.array([[random.random() for _ in range(cols)] for _ in range(rows)])
 
-
-
+# new.compute_cmd(6)
+# cmd = new.cmd 
+# pin_matrix = new.index[new.i]
 
 #%% LEGACY code
 # -------------
