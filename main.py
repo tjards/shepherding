@@ -36,15 +36,11 @@ import json
 from datetime import datetime
 import os
 
-
 # from root folder
 #import animation 
 import swarm
 import animation
 import ctrl_tactic as tactic 
-
-# utilities 
-
 
 #%% initialize data
 data = {}
@@ -59,14 +55,14 @@ with open(file_path, 'w') as file:
 # ------------------
 #np.random.seed(0)
 Ti = 0       # initial time
-Tf = 90      # final time (later, add a condition to break out when desirable conditions are met)
+Tf = 30      # final time (later, add a condition to break out when desirable conditions are met)
 Ts = 0.02    # sample time
 f  = 0       # parameter for future use
 #exclusion = []     # [LEGACY] initialization of what agents to exclude, default empty
 
-#%% Create Agents, Targets, and Obstacles (ATO)
-# ---------------------------------------------
-Agents = swarm.Agents('shep', 7)
+#%% Instantiate the relevants objects
+# ------------------------------------
+Agents = swarm.Agents('shep', 10)
 Controller = tactic.Controller(Agents)
 Targets = swarm.Targets(0, Agents.nVeh)
 Trajectory = swarm.Trajectory(Targets)
@@ -103,14 +99,10 @@ while round(t,3) < Tf:
     
     #%% Compute Trajectory
     # --------------------
-    Trajectory.update(Agents, Targets, t, i)
+    Trajectory.update(Agents, Targets, History, t, i)
                         
     #%% Compute the commads (next step)
-    # -------------------------------- 
-    #Agents.cmd, Agents.params, Agents.pin_matrix = tactic.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Targets.trajectory[0:3,:], Targets.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)
-    #Agents.cmd, Agents.params, Agents.pin_matrix = tactic.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Trajectory.trajectory[0:3,:], Trajectory.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)   
-    #Agents.cmd, Agents.params, Agents.pin_matrix = tactic.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Trajectory.trajectory[0:3,:], Trajectory.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)   
-    #Agents.cmd, Agents.params, Agents.pin_matrix = Controller.commands(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, Targets.targets[0:3,:], Targets.targets[3:6,:], Trajectory.trajectory[0:3,:], Trajectory.trajectory[3:6,:], History.swarm_prox, Agents.tactic_type, Agents.centroid, Agents.params)   
+    # --------------------------------  
     Controller.commands(Agents, Obstacles, Targets, Trajectory, History) 
     
     
@@ -122,7 +114,7 @@ ani = animation.animateMe(Ts, History, Obstacles, Agents.tactic_type)
 #%% Produce plots
 # --------------
 
-#%% separtion 
+# separtion 
 fig, ax = plt.subplots()
 ax.plot(History.t_all[4::],History.metrics_order_all[4::,1],'-b')
 ax.plot(History.t_all[4::],History.metrics_order_all[4::,5],':b')
@@ -136,7 +128,7 @@ ax.set(xlabel='Time [s]', ylabel='Mean Distance (with Min/Max Bounds) [m]',
 ax.grid()
 plt.show()
 
-#%% radii from target
+# radii from target
 radii = np.zeros([History.states_all.shape[2],History.states_all.shape[0]])
 for i in range(0,History.states_all.shape[0]):
     for j in range(0,History.states_all.shape[2]):
@@ -147,7 +139,7 @@ for j in range(0,History.states_all.shape[2]):
     ax.plot(History.t_all[4::],radii[j,4::].ravel(),'-b')
 ax.set(xlabel='Time [s]', ylabel='Distance from Target for Each Agent [m]',
         title='Distance from Target')
-plt.axhline(y = 5, color = 'k', linestyle = '--')
+#plt.axhline(y = 5, color = 'k', linestyle = '--')
 plt.show()
 
 #%% Save data

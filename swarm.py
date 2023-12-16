@@ -34,7 +34,7 @@ class Agents:
                         
         # Vehicles states
         # ---------------
-        iSpread =   10      # initial spread of vehicles
+        iSpread =   20      # initial spread of vehicles
         self.state = np.zeros((6,self.nVeh))
         self.state[0,:] = iSpread*(np.random.rand(1,self.nVeh)-0.5)                   # position (x)
         self.state[1,:] = iSpread*(np.random.rand(1,self.nVeh)-0.5)                   # position (y)
@@ -51,13 +51,6 @@ class Agents:
         # if self.tactic_type == 'pinning':
         #     from utils import pinning_tools
         #     self.pin_matrix = pinning_tools.select_pins_components(self.state[0:3,:])
-
-        # # Commands
-        # # --------
-        # self.cmd = np.zeros((3,self.nVeh))
-        # self.cmd[0] = np.random.rand(1,self.nVeh)-0.5      # command (x)
-        # self.cmd[1] = np.random.rand(1,self.nVeh)-0.5      # command (y)
-        # self.cmd[2] = np.random.rand(1,self.nVeh)-0.5      # command (z)
 
         # Other Parameters
         # ----------------
@@ -506,7 +499,7 @@ class Trajectory:
             
             return trajectory, lemni, pins_all
     
-    def update(self, Agents, Targets, t, i):
+    def update(self, Agents, Targets, History, t, i):
         
         #if flocking
         if Agents.tactic_type == 'reynolds' or Agents.tactic_type == 'saber' or Agents.tactic_type == 'starling' or Agents.tactic_type == 'pinning' or Agents.tactic_type == 'shep':

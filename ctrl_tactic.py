@@ -12,18 +12,12 @@ Created on Mon Jan  4 12:45:55 2021
 
 """
 
+#%% Import stuff
+# --------------
 import numpy as np
-# import reynolds_tools
-# import saber_tools
-# import encirclement_tools as encircle_tools
-# import lemni_tools
-# import starling_tools
-#import pinning_tools
-
 from utils import pinning_tools, reynolds_tools, saber_tools, lemni_tools, starling_tools  
 from utils import encirclement_tools as encircle_tools
 from utils import shepherding as shep
-
 import copy
 
 #%% Tactic Command Equations 
@@ -32,19 +26,15 @@ import copy
 class Controller:
     
     def __init__(self, Agents):
-        
-        #Agents.cmd = np.zeros((3,Agents.state.shape[1]))     # store the commands
-        #Agents.pin_matrix = np.zeros((Agents.state.shape[1],Agents.state.shape[1])) # store pins
-        #Agents.params = np.zeros((1,4))
-        
-        # Commands
+                
+        # commands
         # --------
         self.cmd = np.zeros((3,Agents.nVeh))
         self.cmd[0] = 0.001*np.random.rand(1,Agents.nVeh)-0.5      # command (x)
         self.cmd[1] = 0.001*np.random.rand(1,Agents.nVeh)-0.5      # command (y)
         self.cmd[2] = 0.001*np.random.rand(1,Agents.nVeh)-0.5      # command (z)
 
-        # Other Parameters
+        # other Parameters
         # ----------------
         self.counter = 0 
         self.params = np.zeros((4,Agents.nVeh))  # store dynamic parameters
@@ -54,14 +44,14 @@ class Controller:
         self.components = []
         
         if Agents.tactic_type == 'shep':
-            
             self.shepherdClass = shep.Shepherding(Agents.state)
         
         if Agents.tactic_type == 'pinning':
             from utils import pinning_tools
             self.pin_matrix, self.components = pinning_tools.select_pins_components(Agents.state[0:3,:])
-  
-    #def commands(self, states_q, Agents.state[3:6,:], obstacles, walls, targets, targets_v, targets_enc, targets_v_enc, swarm_prox, tactic_type, centroid, params):   
+   
+    # define commands
+    # ---------------
     def commands(self, Agents, Obstacles, Targets, Trajectory, History):   
  
         # initialize 
@@ -78,6 +68,7 @@ class Controller:
             
         # if doing pinning control, select pins
         if Agents.tactic_type == 'pinning':
+            
             #pin_matrix = pinning_tools.select_pins(states_q) 
             #pin_matrix = pinning_tools.select_pins_components(states_q, 'gramian') 
             
@@ -93,7 +84,6 @@ class Controller:
                     #self.pin_matrix = copy.deepcopy(pin_matrix)
                     #print('change')
     
-  
         # for each vehicle/node in the network
         for k_node in range(Agents.state[0:3,:].shape[1]): 
                      
@@ -106,7 +96,6 @@ class Controller:
                # steal obstacle avoidance term from saber
                # ----------------------------------------
                u_obs[:,k_node] = saber_tools.compute_cmd_b(Agents.state[0:3,:], Agents.state[3:6,:], Obstacles.obstacles_plus, Obstacles.walls, k_node)
-            
             
             # Saber Flocking
             # ---------------                                
@@ -155,7 +144,6 @@ class Controller:
                 # compute command 
                 cmd_i[:,k_node], Controller.params = starling_tools.compute_cmd(Targets.targets[0:3,:], Agents.centroid, Agents.state[0:3,:], Agents.state[3:6,:], k_node, Controller.params, 0.02)
             
-            
             # Pinning
             # --------
             if Agents.tactic_type == 'pinning':
@@ -168,19 +156,16 @@ class Controller:
                 
                 # compute command, pin_matrix records shepherds = 1, herd = 0
                 # ------------------------------------------------
-                cmd_i[:,k_node], self.pin_matrix[k_node, k_node] = shep.compute_cmd( Targets.targets[0:3,:], Agents.centroid, Agents.state[0:3,:], Agents.state[3:6,:], k_node)
-                
-                
-                # overide with the class version
-                # --------------------
+
+                #cmd_i[:,k_node], self.pin_matrix[k_node, k_node] = shep.compute_cmd( Targets.targets[0:3,:], Agents.centroid, Agents.state[0:3,:], Agents.state[3:6,:], k_node)
+   
+                # compute the commands
                 self.shepherdClass.compute_cmd(Targets, k_node)
-                cmd_i[:,k_node] = self.shepherdClass.cmd
-                
-                
-                
-                #print('Error(',k_node,'): ', cmd_i[:,k_node] - self.shepherdClass.cmd)
-                #print('Pin benchmark: ', self.pin_matrix[k_node, k_node], 'output: ', self.shepherdClass.index[self.shepherdClass.i])
- 
+        
+                # pull out results
+                cmd_i[:,k_node]                 = self.shepherdClass.cmd
+                self.pin_matrix[k_node, k_node] = self.shepherdClass.index[self.shepherdClass.i]
+  
             # Mixer
             # -----         
             if Agents.tactic_type == 'saber':
